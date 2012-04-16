@@ -122,6 +122,9 @@ BEGIN
                     0xc4,351,194,84,12
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,13,
                     66,327,56
+		PUSHBUTTON      "-", IDC_LINKUP, 123, 53, 12, 12, NOT WS_VISIBLE
+		LTEXT           "TeamStream Position:  ", IDC_LINKLBL, 137, 55, 76, 8, SS_CENTER | NOT WS_VISIBLE
+		PUSHBUTTON      "+", IDC_LINKDN, 215, 53, 12, 12, NOT WS_VISIBLE
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
                     13,144,327,63
     RTEXT           "",IDC_STATUS2,377,224,76,8
@@ -339,6 +342,9 @@ BEGIN
                     ES_WANTRETURN
     CONTROL         "",IDC_DIV,"Static",SS_ETCHEDHORZ,0,0,315,1
     LTEXT           "User:",IDC_STATIC,0,8,18,8
+		PUSHBUTTON      "-", IDC_LINKUP, 102, 0, 12, 12, NOT WS_VISIBLE
+		LTEXT           "TeamStream Position:  ", IDC_LINKLBL, 118, 2, 76, 8, SS_CENTER | NOT WS_VISIBLE
+		PUSHBUTTON      "+", IDC_LINKDN, 198, 0, 12, 12, NOT WS_VISIBLE
     CONTROL         "Mute user",IDC_MUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,263,8,47,10
 END
@@ -467,6 +473,11 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Quit\tCtrl+Q",               ID_FILE_QUIT
     END
+    POPUP "&TeamStream"
+    BEGIN
+		    MENUITEM "&TeamStream Mode\tCtrl+T", ID_TEAMSTREAM_ON, CHECKED
+        MENUITEM "&NinJam Mode\tCtrl+N", ID_TEAMSTREAM_OFF
+    END
     POPUP "&Options"
     BEGIN
         MENUITEM "&Preferences...\tCtrl+P",     ID_OPTIONS_PREFERENCES
@@ -499,6 +510,8 @@ IDR_ACCELERATOR1 ACCELERATORS DISCARDABLE
 BEGIN
     "D",            ID_FILE_DISCONNECT,     VIRTKEY, CONTROL, NOINVERT
     "K",            ID_FILE_CONNECT,        VIRTKEY, CONTROL, NOINVERT
+		"T",							ID_TEAMSTREAM_ON, VIRTKEY, CONTROL
+		"N",							ID_TEAMSTREAM_OFF, VIRTKEY, CONTROL
     "O",            ID_OPTIONS_AUDIOCONFIGURATION, VIRTKEY, CONTROL, 
                                                     NOINVERT
     "P",            ID_OPTIONS_PREFERENCES, VIRTKEY, CONTROL, NOINVERT

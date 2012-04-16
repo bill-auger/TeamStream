@@ -49,7 +49,7 @@ string makeLicenseFilename()
 	return licenseFilename ;
 }
 
-string makeAgreeKey() { string agreeKey(makeHostString()) ; return (agreeKey = "Agree_" + agreeKey); }
+string makeAgreeKey() { string agreeKey(makeHostString()) ; return (agreeKey = "agree_" + agreeKey); }
 
 string stripLineEnds(string aString)
 {

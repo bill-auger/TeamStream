@@ -66,6 +66,8 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
+static bool g_kick_duplicate_username = true ;
+static bool g_is_teamstream_init_once = false ;
 
 // chat colors
 COLORREF m_chat_colors[N_CHAT_COLORS] =
@@ -80,7 +82,8 @@ static HWND m_chat_display , m_horiz_split , m_vert_split ;
 static HWND m_color_picker_toggle , m_color_picker , m_color_btn_hwnds[N_CHAT_COLORS] ;
 
 
-// chat functions
+/* chat functions */
+
 void SendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
 
 void SendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
@@ -100,8 +103,9 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 		{
 			int btnId = LOWORD(wParam) ;
 			int btnIdx = 0 ; while (btnIdx < N_CHAT_COLORS && m_color_btn_ids[btnIdx] != btnId) ++btnIdx ;
-			if (btnIdx != N_CHAT_COLORS) TeamStream::SetChatColorIdx(USERID_LOCAL , btnIdx) ;
-			ShowWindow(hwndDlg , SW_HIDE) ;
+			ShowWindow(hwndDlg , SW_HIDE) ; if (btnIdx == N_CHAT_COLORS) return 0 ;
+			TeamStream::SetChatColorIdx(USERID_LOCAL , btnIdx) ;
+			TeamStream::WriteTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , btnIdx) ;
 		}
 		break ;
 	}
@@ -110,6 +114,72 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 }
 
 COLORREF getChatColor(int idx) { return m_chat_colors[idx] ; }
+
+
+/* GUI helpers */
+
+void setTeamStreamMenuItems(bool isOn)
+{	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_ON , (isOn)? MF_CHECKED : MF_UNCHECKED) ;
+	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ; }
+
+
+void initTeamStreamUser(HWND hwndDlg , bool isEnable)
+{
+	char* fullUserName = g_client->GetUserName() ;
+	char* localUsername = TeamStream::TrimUsername(fullUserName) ;
+	SetDlgItemText(hwndDlg , IDC_STATUS , "Initializing TeamStream ....") ; Sleep(1000) ;
+	if (TeamStream::IsTeamStreamUsernameCollision(localUsername))
+	{
+		if (!g_kick_duplicate_username) chat_addline("TeamStream" , DUPLICATE_USERNAME_CHAT_MSG) ;
+		else
+		{	// force server timeout (we are blocking here so this may happen anyways while reading the msg)
+			time_t begin , end ; time(&begin) ; int elapsed ;
+			MessageBox(g_hwnd , DUPLICATE_USERNAME_LOGOUT_MSG , "Duplicate Username" , MB_OK) ;
+			time(&end) ; elapsed = (int)difftime(end , begin) ;
+			while (elapsed++ < 10)
+			{
+				char statusText[32] ; sprintf(statusText , "Logging out in %d seconds" , (10 - elapsed)) ;
+				Sleep(1000) ; SetDlgItemText(hwndDlg , IDC_STATUS , statusText) ;
+			}
+		}
+		return ;
+	}
+
+  WDL_String statusText ; statusText.Set("Status: Connected to ") ;
+  statusText.Append(g_client->GetHostName()) ;
+  statusText.Append(" as ") ; statusText.Append(localUsername) ;
+  SetDlgItemText(hwndDlg , IDC_STATUS , statusText.Get()) ;
+
+	int chatColorIdx = TeamStream::ReadTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , CHAT_COLOR_DEFAULT) ;
+	TeamStream::AddLocalUser(localUsername , chatColorIdx , fullUserName) ;
+	TeamStream::SetTeamStreamMode(USERID_LOCAL , isEnable) ; setTeamStreamMenuItems(isEnable) ;
+}
+
+
+// GUI functions
+void setTeamStreamModeGUI(int userId , bool isEnable)
+{
+/* TeamStreamMode nyi this commit let's keep these hidden for now
+	UINT showHide = (isEnable)? SW_SHOWNA : SW_HIDE ;
+	if (userId == USERID_LOCAL)
+	{
+		setTeamStreamMenuItems(isEnable) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
+	}
+	else
+	{
+		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) , showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) , showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) , showHide) ;
+	}
+*/
+}
+
+
+/* ninjam core */
 
 static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -401,8 +471,9 @@ static void do_disconnect()
       }
       RemoveDirectory(sessiondir.Get());
     }
-    
   }
+
+	g_is_teamstream_init_once = false ;
 }
 
 
@@ -1019,6 +1090,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
           chatRun(hwndDlg);
 
+					// initialize phantom users and try to join the TeamStream session
+					if (!g_is_teamstream_init_once && ns == NJClient::NJC_STATUS_OK)
+					{
+						g_is_teamstream_init_once = true ;
+						bool isEnable = TeamStream::ReadTeamStreamConfigBool("teamstreamEnabled" , 1) ;
+						initTeamStreamUser(hwndDlg , isEnable) ;
+					}
+
           in_t=0;
         }
       }
@@ -1516,6 +1595,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   g_client->ChatMessage_Callback = chatmsg_cb;
 
 	// GUI delegates
+	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Get_Chat_Color = getChatColor ;
 	TeamStream::Send_Chat_Message = SendChatMessage ;
 	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ;

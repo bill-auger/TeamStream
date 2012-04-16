@@ -23,7 +23,12 @@
 #ifndef _TEAMSTREAM_H_
 #define _TEAMSTREAM_H_
 
-// USER_ID #defines
+/* TeamStream #defines */
+#define N_LINKS 8
+#define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
+#define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
+
+// static users #defines
 #define N_PHANTOM_USERS 3
 /*
 #define N_STATIC_USERS 4
@@ -36,13 +41,14 @@
 #define USERNAME_SERVER "Server"
 #define USERID_LOCAL -1					// local user
 
-// license.cpp
+/* config defines */
 #define TEAMSTREAM_CONFSEC "teamstream"
 #define LICENSE_CHANGED_LBL "This license has ch&anged"
 #define AGREE_ALWAYS_LBL "&Always agree for this jam room"
+#define CHAT_COLOR_CFG_KEY "chat_color_idx"
 
-/* chat.cpp defines */
-#define N_LINKS 8
+
+/* chat color defines */
 #define N_CHAT_COLORS 18
 #define CHAT_COLOR_DEFAULT 9
 #define CHAT_COLOR_DEFAULT_WIN32 0x00888888
@@ -53,11 +59,16 @@
 #define COLOR_CHAT_TRIGGER "!color "
 #define COLOR_CHAT_TRIGGER_LEN 7
 
-/* teamstream.cpp includes */
-#include "windows.h"
-#include <string>
-#include "../WDL/ptrlist.h"
-
+/* chat message defines */
+#define TEAMSTREAM_CHAT_TRIGGER "!teamstream "
+/*
+#define TEAMSTREAM_CHAT_TRIGGER_LEN 12
+#define LINKS_CHAT_TRIGGER "!links "
+#define LINKS_CHAT_TRIGGER_LEN 7
+#define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
+#define LINKS_REQ_CHAT_TRIGGER_LEN 10
+#define LINKS_CHAT_DELAY 200
+*/
 /* license.cpp includes */
 //#include <string>
 
@@ -65,6 +76,16 @@
 //#include "windows.h"
 //#include <string>
 
+/* teamstream.cpp includes */
+#include "windows.h"
+#include <string>
+#include "../WDL/ptrlist.h"
+#include "../WDL/string.h"
+
+
+/* TeamStream and TeamStreamUser class declarations */
+
+extern WDL_String g_ini_file ;
 
 class TeamStreamUser
 {
@@ -83,7 +104,7 @@ class TeamStreamUser
 		char* m_name ;								// short username "me" vs "me@127.0.0.xxx"
 		bool m_teamstream_enabled ;		// false == NinJam mode , true == TeamStream mode
 		int m_link_idx ;								// position in the TeamStream chain
-		HWND m_gui_handle ;					// handle to user's channels child window
+		HWND m_gui_handle_w32 ;				// handle to user's channels child window (win32)
 		int m_chat_color_idx ;					// index into per client chat color array
 char* m_full_name ; // TODO: lose this (see AddUser() implementation)
 } ;
@@ -98,25 +119,39 @@ class TeamStream
 		// helpers
 		static char* TrimUsername(char* username) ;
 
+		// config helpers
+		static bool ReadTeamStreamConfigBool(char* aKey , bool defVal) ;
+		static void WriteTeamStreamConfigBool(char* aKey , bool aBool) ;
+		static int ReadTeamStreamConfigInt(char* aKey , int defVal) ;
+		static void WriteTeamStreamConfigInt(char* aKey , int anInt) ;
+		//static char* ReadTeamStreamConfigString(char* aKey , char* defVal , char* buf) ;
+
 		// user creation/destruction/query
 		static int GetNUsers() ;
 		static void InitTeamStream() ;
 		static void AddLocalUser(char* username , int chatColor , char* fullUserName) ;
+		static bool IsTeamStreamUsernameCollision(char* shortUsername) ;
 		static bool IsLocalTeamStreamUserExist() ;
 		static bool IsUserIdReal(int userId) ;
 		static TeamStreamUser* GetUserById(int userId) ;
 		static int GetUserIdByName(char* username) ;
+		static int TeamStream::GetChatColorIdxByName(char* username) ;
 
 		// user state getters/setters
+		static bool GetTeamStreamMode(int userId) ;
+		static void SetTeamStreamMode(int userId , bool isEnable) ;
+		static HWND GetUserGUIHandleWin32(int userId) ;
 		static int GetChatColorIdx(int userId) ;
 		static void SetChatColorIdx(int userId , int chatColorIdx) ;
 
 		// chat messages
 		static void SendChatMsg(char* chatMsg) ;
 		static void SendChatPvtMsg(char* chatMsg , char* destUserName) ;
+		static void SendTeamStreamChatMsg(bool isPrivate , char* destUserName) ;
 		static void SendChatColorChatMsg(bool isPrivate , char* destFullUserName) ;
 
 		// GUI delegates
+		static void (*Set_TeamStream_Mode_GUI)(int userId , bool isEnable) ;
 		static COLORREF (*Get_Chat_Color)(int idx) ;
 		static void (*Send_Chat_Message)(char* chatMsg) ; // merged
 		static void (*Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) ; // merged

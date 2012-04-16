@@ -127,9 +127,14 @@
 #define IDC_COLORDKPURPLE												2018
 #define IDC_COLORLTBLACK												2019
 
-// license
+// license checkboxes
 #define IDC_AGREE																2020
 #define IDC_AGREE_ALWAYS	            					2021
+
+// TeamStream link swap buttons
+#define IDC_LINKLBL															3000
+#define IDC_LINKUP															3001
+#define IDC_LINKDN															3002
 
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
@@ -138,3 +143,8 @@
 #define ID_OPTIONS_PREFERENCES          40005
 #define ID_OPTIONS_ALWAYSONTOP          40006
 #define ID_OPTIONS_AUDIOCONFIGURATION   40007
+
+// TeamStream menu items
+#define ID_TEAMSTREAM_ON												41000
+#define ID_TEAMSTREAM_OFF												41001
+

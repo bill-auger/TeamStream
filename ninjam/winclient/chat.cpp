@@ -269,13 +269,11 @@ void chatRun(HWND hwndDlg)
 					while (*t && *t != '\n' && *t != '\r') ++t ; lineEnd = t - txt - sub ;
 				}
 
-				COLORREF color ;
 				if (isColorText)
 				{
 					// choose color per user
-					int userId = TeamStream::GetUserIdByName(theUsername) ;
-					if (isColorText = (userId != USERID_NOBODY))
-						color = TeamStream::Get_Chat_Color(TeamStream::GetChatColorIdx(userId)) ;
+					int chatColorIdx = TeamStream::GetChatColorIdxByName(theUsername) ;
+					COLORREF color = TeamStream::Get_Chat_Color(chatColorIdx) ;
 
 					// apply char formatting
 					CHARFORMAT2 cf2 ; cf2.cbSize = sizeof(cf2) ;
