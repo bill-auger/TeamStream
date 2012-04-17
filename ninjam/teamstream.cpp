@@ -44,6 +44,21 @@ char* TeamStream::TrimUsername(char* username)
 	return trimmedUsername ;
 }
 
+WDL_String TeamStream::ValidateHost(LPSTR lpszCmdParam)
+{
+	// parse cmd line
+	int isQuoted = (int)(lpszCmdParam[0] == '"') ;
+	char params[256] ; strncpy(params , lpszCmdParam + isQuoted , 255) ; int len = strlen(params) ;
+	int isSlash = (int)(params[len - (1 + isQuoted)] == '/') ;
+	params[len - isQuoted - isSlash] = '\0' ;
+	char* prot ; if (!(prot = strtok(params , ":")) || strcmp(prot , "ninjam")) return "" ;
+
+	//char host[256] ; strcpy(host , params + 9) ; int port ;
+	WDL_String host ; host.Set(params + 9) ; int port ;
+	if (!strtok(NULL , ":") || !(port = atoi(strtok(NULL , ":")))) return "" ;
+	if (port < 2049 || port > 2999) return "" ; else return host ;
+}
+
 
 /* config helpers */
 
@@ -148,12 +163,13 @@ void TeamStream::SendChatMsg(char* chatMsg) { Send_Chat_Message(chatMsg) ; }
 void TeamStream::SendChatPvtMsg(char* chatMsg , char* destFullUserName) { Send_Chat_Pvt_Message(destFullUserName , chatMsg) ; }
 
 void TeamStream::SendTeamStreamChatMsg(bool isPrivate , char* destFullUserName)
-{
+{/*
 	if (!IsLocalTeamStreamUserExist()) return ; // initTeamStream() failure
 
 	WDL_String chatMsg ; chatMsg.Set(TEAMSTREAM_CHAT_TRIGGER) ;
 	chatMsg.Append((GetTeamStreamMode(USERID_LOCAL))? "enabled" : "disabled") ;
 	if (isPrivate) SendChatPvtMsg(chatMsg.Get() , destFullUserName) ; else SendChatMsg(chatMsg.Get()) ;
+*/
 }
 
 void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)

@@ -47,7 +47,6 @@
 #define AGREE_ALWAYS_LBL "&Always agree for this jam room"
 #define CHAT_COLOR_CFG_KEY "chat_color_idx"
 
-
 /* chat color defines */
 #define N_CHAT_COLORS 18
 #define CHAT_COLOR_DEFAULT 9
@@ -67,7 +66,7 @@
 #define LINKS_CHAT_TRIGGER_LEN 7
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
-#define LINKS_CHAT_DELAY 200
+#define LINKS_CHAT_DELAY 200 // for IDT_LINKS_CHAT_TIMER
 */
 /* license.cpp includes */
 //#include <string>
@@ -75,6 +74,9 @@
 /* chat.cpp includes */
 //#include "windows.h"
 //#include <string>
+
+/* misc defines */
+#define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
 
 /* teamstream.cpp includes */
 #include "windows.h"
@@ -118,7 +120,7 @@ class TeamStream
 
 		// helpers
 		static char* TrimUsername(char* username) ;
-
+		static WDL_String ValidateHost(LPSTR lpszCmdParam) ;
 		// config helpers
 		static bool ReadTeamStreamConfigBool(char* aKey , bool defVal) ;
 		static void WriteTeamStreamConfigBool(char* aKey , bool aBool) ;

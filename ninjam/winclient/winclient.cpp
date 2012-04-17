@@ -43,7 +43,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.06"
+#define VERSION "0.07.01"
 
 #define CONFSEC "wahjam"
 
@@ -967,7 +967,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
 
-				TeamStream::InitTeamStream() ;
+				TeamStream::InitTeamStream() ; 
       }
     return 0;
     case WM_TIMER:
@@ -1101,6 +1101,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           in_t=0;
         }
       }
+			// auto-join via command line or ninjam:// url
+			else if (wParam == IDT_AUTO_JOIN_TIMER)
+			{
+				KillTimer(hwndDlg , IDT_AUTO_JOIN_TIMER) ;
+				if (strcmp(g_connect_user.Get() , "")) do_connect() ;
+				else PostMessage(g_hwnd , WM_COMMAND , (WPARAM)ID_FILE_CONNECT , 0) ;
+			}
     break;
     case WM_GETMINMAXINFO:
       {
@@ -1559,10 +1566,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_user.Set(buf);
     GetPrivateProfileString(CONFSEC,"pass","",buf,sizeof(buf),g_ini_file.Get());
     g_connect_pass.Set(buf);
-    g_connect_passremember=GetPrivateProfileInt(CONFSEC,"passrem",1,g_ini_file.Get());
-    g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
+    g_connect_passremember = GetPrivateProfileInt(CONFSEC , "passrem" , 0 , g_ini_file.Get()) ;
+    g_connect_anon = GetPrivateProfileInt(CONFSEC , "anon" , 1 , g_ini_file.Get()) ;
   }
-
 
   { // load richedit DLL
     WNDCLASS wc={0,};
@@ -1607,6 +1613,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     MessageBox(NULL,"Error creating dialog","Wahjam Error",0);
     return 0;
   }
+
+	// set auto-join timer via command line or ninjam:// url
+	if (strcmp(lpszCmdParam , ""))
+	{
+		WDL_String host = TeamStream::ValidateHost(lpszCmdParam) ;
+		if (!strcmp(host.Get() , "")) MessageBox(NULL , "Sorry, that jam room doesn't exist" , "Invalid Url" , NULL) ;
+		else { g_connect_host.Set(host.Get()) ; SetTimer(g_hwnd , IDT_AUTO_JOIN_TIMER , AUTO_JOIN_DELAY , NULL) ; }
+	}
 
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))

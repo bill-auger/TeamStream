@@ -136,6 +136,9 @@
 #define IDC_LINKUP															3001
 #define IDC_LINKDN															3002
 
+// timers
+#define IDT_AUTO_JOIN_TIMER											4000
+
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
