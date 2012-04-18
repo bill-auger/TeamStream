@@ -65,7 +65,15 @@ _ReSharper*/
 #
 ~$*
 
- 
+
+#
+# obsolete VS project files
+#
+*.dsp
+*.dsw
+*.vsproj
+
+
 #
 # from wahjam fork
 # 
