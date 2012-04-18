@@ -42,6 +42,7 @@
 #define USERID_LOCAL -1					// local user
 
 /* config defines */
+#define MAX_CONFIG_STRING_LEN 2048
 #define TEAMSTREAM_CONFSEC "teamstream"
 #define LICENSE_CHANGED_LBL "This license has ch&anged"
 #define AGREE_ALWAYS_LBL "&Always agree for this jam room"
@@ -75,8 +76,15 @@
 //#include "windows.h"
 //#include <string>
 
-/* misc defines */
+/* known hosts */
 #define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
+#define MIN_PORT 2049
+#define MAX_PORT 2099
+#define UNKNOWN_HOST_MSG "Sorry, the ninjam:// link that you clicked does not point to a known public server. If you would like to be able to auto-join this server; you must add it to your list of trusted servers in CONFIG (TODO:)."
+#define N_KNOWN_HOSTS 3
+#define KNOWN_HOST_NINJAM "ninjam.com"
+#define KNOWN_HOST_NINBOT "ninbot.com"
+#define KNOWN_HOST_NINJAMER "ninjamer.com"
 
 /* teamstream.cpp includes */
 #include "windows.h"
@@ -126,7 +134,7 @@ class TeamStream
 		static void WriteTeamStreamConfigBool(char* aKey , bool aBool) ;
 		static int ReadTeamStreamConfigInt(char* aKey , int defVal) ;
 		static void WriteTeamStreamConfigInt(char* aKey , int anInt) ;
-		//static char* ReadTeamStreamConfigString(char* aKey , char* defVal , char* buf) ;
+		static std::string ReadTeamStreamConfigString(char* aKey , char* defVal) ;
 
 		// user creation/destruction/query
 		static int GetNUsers() ;
@@ -161,6 +169,7 @@ class TeamStream
 	private:
 		static WDL_PtrList<TeamStreamUser> m_teamstream_users ; static int m_next_id ;
 		static TeamStreamUser* TeamStream::m_bogus_user ;
+		static std::string m_known_hosts[N_KNOWN_HOSTS] ;
 } ;
 
 #endif _TEAMSTREAM_H_

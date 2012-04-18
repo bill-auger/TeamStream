@@ -25,11 +25,6 @@
 using namespace std ;
 
 
-// TeamStream users array (private)
-WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
-TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
-
-
 /* helpers */
 
 char* TeamStream::TrimUsername(char* username)
@@ -44,19 +39,33 @@ char* TeamStream::TrimUsername(char* username)
 	return trimmedUsername ;
 }
 
-WDL_String TeamStream::ValidateHost(LPSTR lpszCmdParam)
+WDL_String TeamStream::ValidateHost(LPSTR cmdParam)
 {
-	// parse cmd line
-	int isQuoted = (int)(lpszCmdParam[0] == '"') ;
-	char params[256] ; strncpy(params , lpszCmdParam + isQuoted , 255) ; int len = strlen(params) ;
-	int isSlash = (int)(params[len - (1 + isQuoted)] == '/') ;
-	params[len - isQuoted - isSlash] = '\0' ;
-	char* prot ; if (!(prot = strtok(params , ":")) || strcmp(prot , "ninjam")) return "" ;
+	// parse first cmd line arg (e.g. ninjam://ninbot.com:2049)
+	WDL_String empty ; empty.Set("") ; if (!cmdParam[0]) return empty ;
 
-	//char host[256] ; strcpy(host , params + 9) ; int port ;
-	WDL_String host ; host.Set(params + 9) ; int port ;
-	if (!strtok(NULL , ":") || !(port = atoi(strtok(NULL , ":")))) return "" ;
-	if (port < 2049 || port > 2999) return "" ; else return host ;
+	int isQuoted = (int)(cmdParam[0] == '"') ;
+	char param[256] ; strncpy(param , cmdParam + isQuoted , 255) ; int len = strlen(param) ;
+	int isSlash = (int)(param[len - (1 + isQuoted)] == '/') ;
+	param[len - isQuoted - isSlash] = '\0' ;
+
+	// tokenize and validate
+	char* prot ; if (!(prot = strtok(param , ":")) || strcmp(prot , "ninjam")) return empty ;
+
+	// validate host and port existance
+	WDL_String hostAndPort ; hostAndPort.Set(param + 9) ; char* host ; int port ;
+	host = strtok(NULL , ":") ; char* p = strtok(NULL , ":") ; if (p) port = atoi(p) ;
+	if (host && strlen(host) > 2 && port >= MIN_PORT && port <= MAX_PORT)
+		host += 2 ; else return empty ; // strip leading slashes
+
+	// validate allowed hosts
+	int i = N_KNOWN_HOSTS ; while (i-- && m_known_hosts[i].compare(host)) ; bool isDefaultHost = (i > -1) ;
+	string confHosts = ReadTeamStreamConfigString("auto_join_hosts" , "") ;
+	char customHosts[MAX_CONFIG_STRING_LEN] ; strcpy(customHosts , confHosts.c_str()) ;
+	char* customHost = strtok(customHosts , ",") ;
+	while (customHost && strcmp(customHost , host)) customHost = strtok(NULL , ",") ;
+
+	return (isDefaultHost || customHost)? hostAndPort : empty ;
 }
 
 
@@ -73,8 +82,13 @@ void TeamStream::WriteTeamStreamConfigInt(char* aKey , int anInt)
 	if (anInt <= 9999999) { char theInt[8] ; sprintf(theInt , "%d" , anInt) ;
 		WritePrivateProfileString(TEAMSTREAM_CONFSEC , aKey , theInt , g_ini_file.Get()) ; }
 }
-//void ReadTeamStreamConfigString(char* aKey , char* defVal , char* buf)
-//	{ GetPrivateProfileString(TEAMSTREAM_CONFSEC , aKey , defVal , buf , sizeof(buf) , g_ini_file.Get()) ; }
+string TeamStream::ReadTeamStreamConfigString(char* aKey , char* defVal)
+{
+	char buff[MAX_CONFIG_STRING_LEN] ;
+	GetPrivateProfileString(TEAMSTREAM_CONFSEC , aKey , defVal , buff , sizeof(buff) , g_ini_file.Get()) ;
+
+	return string(buff) ;
+}
 
 
 /* user creation/destruction/queries */
@@ -188,3 +202,12 @@ COLORREF (*TeamStream::Get_Chat_Color)(int idx) = NULL ;
 void (*TeamStream::Send_Chat_Message)(char* chatMsg) = NULL ;
 
 void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) = NULL ;
+
+
+/* private menbers */
+
+// TeamStream users array (private)
+WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
+TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
+// known hosts vector (private)
+string TeamStream::m_known_hosts[] = { KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER } ;

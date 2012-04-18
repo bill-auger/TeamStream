@@ -37,6 +37,7 @@ using namespace std ;
 string makeHostString()
 {
 	string host(g_client->GetHostName()) ;
+
 	size_t colonIdx = host.find_last_of(':') ; host.replace(colonIdx , 1 , "_") ;
 
 	return host ;

@@ -81,7 +81,7 @@ int m_color_btn_ids[N_CHAT_COLORS] =
 static HWND m_chat_display , m_horiz_split , m_vert_split ;
 static HWND m_color_picker_toggle , m_color_picker , m_color_btn_hwnds[N_CHAT_COLORS] ;
 
-
+	
 /* chat functions */
 
 void SendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
@@ -1615,12 +1615,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   }
 
 	// set auto-join timer via command line or ninjam:// url
-	if (strcmp(lpszCmdParam , ""))
-	{
-		WDL_String host = TeamStream::ValidateHost(lpszCmdParam) ;
-		if (!strcmp(host.Get() , "")) MessageBox(NULL , "Sorry, that jam room doesn't exist" , "Invalid Url" , NULL) ;
-		else { g_connect_host.Set(host.Get()) ; SetTimer(g_hwnd , IDT_AUTO_JOIN_TIMER , AUTO_JOIN_DELAY , NULL) ; }
-	}
+	WDL_String host = TeamStream::ValidateHost(lpszCmdParam) ;
+	if (!strcmp(host.Get() , "")) MessageBox(NULL , UNKNOWN_HOST_MSG , "Unknown Host" , NULL) ;
+	else { g_connect_host.Set(host.Get()) ; SetTimer(g_hwnd , IDT_AUTO_JOIN_TIMER , AUTO_JOIN_DELAY , NULL) ; }
 
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))
