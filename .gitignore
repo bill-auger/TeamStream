@@ -18,6 +18,7 @@
 #
 #Visual Studio files
 #
+*.sln
 *.[Oo]bj
 *.user
 *.aps
