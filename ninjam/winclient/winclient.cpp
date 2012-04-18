@@ -104,6 +104,7 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 			int btnId = LOWORD(wParam) ;
 			int btnIdx = 0 ; while (btnIdx < N_CHAT_COLORS && m_color_btn_ids[btnIdx] != btnId) ++btnIdx ;
 			ShowWindow(hwndDlg , SW_HIDE) ; if (btnIdx == N_CHAT_COLORS) return 0 ;
+
 			TeamStream::SetChatColorIdx(USERID_LOCAL , btnIdx) ;
 			TeamStream::WriteTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , btnIdx) ;
 		}
@@ -1385,12 +1386,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 				case IDC_COLORTOGGLE:
 				{
-//					if (!TeamStream::IsLocalTeamStreamUserExist()) break ;
+					SendDlgItemMessage(hwndDlg , IDC_CHATENT , WM_SETFOCUS , 0 , 0) ;
+					if (!TeamStream::IsLocalTeamStreamUserExist()) break ;
 
-					if (ShowWindow(m_color_picker , SW_SHOW)) ShowWindow(m_color_picker , SW_HIDE) ;
+					if (ShowWindow(m_color_picker , SW_SHOWNOACTIVATE))
+						{ ShowWindow(m_color_picker , SW_HIDE) ; break ; }
+
 					RECT toggleRect ; GetWindowRect(m_color_picker_toggle , &toggleRect) ;
 					int x = toggleRect.left - 144 ; int y = toggleRect.bottom - 26 ;
-					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
+					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE | SWP_NOACTIVATE) ;
 				}
 				break ;
       }
