@@ -166,7 +166,7 @@ void TeamStream::SetChatColorIdx(int userId , int chatColorIdx)
 	if (!IsUserIdReal(userId)) return ;
 
 	GetUserById(userId)->m_chat_color_idx = chatColorIdx ;
-	if (userId == USERID_LOCAL) { SendChatColorChatMsg(false , NULL) ; SendChatMsg(" likes this color better") ; }
+	if (userId == USERID_LOCAL) { SendChatColorChatMsg(false , NULL) ; SendChatMsg("likes this color better") ; }
 }
 
 
@@ -210,4 +210,9 @@ void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg
 WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
 TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
 // known hosts vector (private)
-string TeamStream::m_known_hosts[] = { KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER } ;
+string TeamStream::m_known_hosts[] =
+{
+	KNOWN_HOST_NINJAM ,
+	KNOWN_HOST_NINBOT ,
+	KNOWN_HOST_NINJAMER
+} ;

@@ -2,18 +2,18 @@
     Copyright (C) 2005 Cockos Incorporated
     Portions Copyright (C) 2005 Brennan Underwood
 
-    Wahjam is free software; you can redistribute it and/or modify
+    TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    Wahjam is distributed in the hope that it will be useful,
+    TeamStream is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Wahjam; if not, write to the Free Software
+    along with TeamStream; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -45,7 +45,7 @@
 
 #define VERSION "0.07.01"
 
-#define CONFSEC "wahjam"
+#define CONFSEC "ninjam"
 
 WDL_String g_ini_file;
 WDL_Mutex g_client_mutex;
@@ -235,7 +235,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
   {
     case WM_INITDIALOG:
       {
-        if (GetPrivateProfileInt(CONFSEC,"savelocal",1,g_ini_file.Get()))
+        if (GetPrivateProfileInt(CONFSEC,"savelocal",0,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCAL,BST_CHECKED);
         if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCALWAV,BST_CHECKED);
@@ -521,7 +521,7 @@ static void do_connect()
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
     if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
-    strcat(buf,".wahjam");
+    strcat(buf,".ninjam");
 
     if (CreateDirectory(buf,NULL)) break;
 
@@ -530,7 +530,7 @@ static void do_connect()
   if (cnt >= 16)
   {      
     SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR CREATING SESSION DIRECTORY");
-    MessageBox(g_hwnd,"Error creating session directory!", "Wahjam error", MB_OK);
+    MessageBox(g_hwnd,"Error creating session directory!", "TeamStream error", MB_OK);
     return;
   }
 
@@ -539,7 +539,7 @@ static void do_connect()
   {
     RemoveDirectory(buf);
     SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR OPENING AUDIO");
-    MessageBox(g_hwnd,"Error opening audio device, try reconfiguring!", "Wahjam error", MB_OK);
+    MessageBox(g_hwnd,"Error opening audio device, try reconfiguring!", "TeamStream error", MB_OK);
     return;
   }
 
@@ -731,7 +731,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       {
         GetWindowRect(hwndDlg,&init_r);
 
-        SetWindowText(hwndDlg,"Wahjam v" VERSION);
+        SetWindowText(hwndDlg,"TeamStream v" VERSION);
         g_hwnd=hwndDlg;
 
         resize.init(hwndDlg);
@@ -1020,17 +1020,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
               {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
-                MessageBox(g_hwnd,"Disconnected from host!", "Wahjam Notice", MB_OK);
+                MessageBox(g_hwnd,"Disconnected from host!", "TeamStream Notice", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
               {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
-                MessageBox(g_hwnd,"Error connecting: invalid authentication information!", "Wahjam error", MB_OK);
+                MessageBox(g_hwnd,"Error connecting: invalid authentication information!", "TeamStream error", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_CANTCONNECT)
               {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
-                MessageBox(g_hwnd,"Error connecting: can't connect to host!", "Wahjam error", MB_OK);
+                MessageBox(g_hwnd,"Error connecting: can't connect to host!", "TeamStream error", MB_OK);
               }
             }
           }
@@ -1236,7 +1236,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
-        case ID_HELP_ABOUTNINJAM:
+        case ID_HELP_ABOUT:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
         break;
         case IDC_MASTERMUTE:
@@ -1554,7 +1554,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     while (*p) p++;
     while (p > g_exepath && *p != '\\') p--; *p=0;
     g_ini_file.Set(g_exepath);
-    g_ini_file.Append("\\wahjam.ini");
+    g_ini_file.Append("\\teamstream.ini");
   }
 
   // read config file
@@ -1588,7 +1588,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     GetClassInfo(NULL,"#32770",&wc);
     wc.hIcon=LoadIcon(g_hInst,MAKEINTRESOURCE(IDI_ICON1));
     RegisterClass(&wc);
-    wc.lpszClassName = "WAHJAMwnd";
+    wc.lpszClassName = "TEAMSTREAMwnd";
     RegisterClass(&wc);
   }
 
@@ -1610,7 +1610,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
   if (!CreateDialog(hInstance,MAKEINTRESOURCE(IDD_MAIN),GetDesktopWindow(),MainProc))
   {
-    MessageBox(NULL,"Error creating dialog","Wahjam Error",0);
+    MessageBox(NULL,"Error creating dialog","TeamStream Error",0);
     return 0;
   }
 
