@@ -65,7 +65,15 @@ _ReSharper*/
 #
 ~$*
 
- 
+
+#
+# obsolete VS project files
+#
+*.dsp
+*.dsw
+*.vcproj
+
+
 #
 # from wahjam fork
 # 
@@ -76,3 +84,9 @@ ninjam/cursesclient/cwahjam
 ninjam/server/wahjamsrv
 ninjam/qtclient/Makefile
 ninjam/qtclient/qtclient
+
+
+#
+# misc
+#
+*_license.txt
