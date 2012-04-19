@@ -20,32 +20,57 @@
   This file defines the interface for the TeamStream class, .... TODO:
 */
 
+
 #ifndef _TEAMSTREAM_H_
 #define _TEAMSTREAM_H_
 
+// TODO:
+#define TEAMSTREAM_GUI_LISTVIEW 0
+#define TEAMSTREAM_AUDIO 0
+#define HORIZ_RESIZE_IMPLEMENTED 0
+
 /* TeamStream #defines */
+// NOTE: last on chain has no one to stream to and 2nd to last is not delayed so
+//		only [N_LINKS - 2] buffers are strictly needed
+//		the deepest buffer is for final mix listen only (may not need)
 #define N_LINKS 8
+#define N_TEAMSTREAM_BUFFERS N_LINKS - 1
+#define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
+#define UPDATE_CHAT_MSG "An updated version of Ninjam TeamStream is available for download here --> " // 75 chars
 #define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
 #define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
 
 // static users #defines
-#define N_PHANTOM_USERS 3
-/*
+// USERID_NOBODY and USERID_LOCAL are semantical - the rest are primarily for chat colorong
+// assert m_teamstream_users.Get(0) -> USERID_NOBODY
+// assert m_teamstream_users.Get(N_PHANTOM_USERS) -> USERID_LOCAL
+// assert (N_STATIC_USERS == N_PHANTOM_USERS + 1)
 #define N_STATIC_USERS 4
+#define N_PHANTOM_USERS 3
+#define USERID_LOCAL -1										// real local TeamStream user
+#define USERID_SERVER -2									// phantom 'Server' chat user
+#define USERNAME_SERVER "Server"
+#define USERID_TEAMSTREAM -3							// phantom 'TeamStream' chat user
+#define USERNAME_TEAMSTREAM "TeamStream"
+/*
+#define USERID_NINBOT -4									// phantom 'ninbot' chat user
+#define USERNAME_NINBOT "ninbot"
+#define USERID_JAMBOT -5									// phantom 'Jambot' chat user
+#define USERNAME_JAMBOT "Jambot"
+#define USERID_NOBODY -4									// phantom 'Nobody' TeamStream user
+#define USERNAME_NOBODY "Nobody"
 */
 #define USERID_NOBODY -4				// phantom 'Nobody' TeamStream user
 #define USERNAME_NOBODY "Nobody"
-#define USERID_TEAMSTREAM -3		// phantom 'TeamStream' chat user
-#define USERNAME_TEAMSTREAM "TeamStream"
-#define USERID_SERVER -2				// phantom 'Server' chat user
-#define USERNAME_SERVER "Server"
-#define USERID_LOCAL -1					// local user
 
 /* config defines */
 #define MAX_CONFIG_STRING_LEN 2048
 #define TEAMSTREAM_CONFSEC "teamstream"
 #define LICENSE_CHANGED_LBL "This license has ch&anged"
 #define AGREE_ALWAYS_LBL "&Always agree for this jam room"
+#define SERVER_LICENSE_TEXTFILE "_license.txt"
+#define AGREE_CFG_KEY "agree_"
+#define AUTO_JOIN_CFG_KEY "auto_join_hosts"
 #define CHAT_COLOR_CFG_KEY "chat_color_idx"
 
 /* chat color defines */
@@ -61,14 +86,13 @@
 
 /* chat message defines */
 #define TEAMSTREAM_CHAT_TRIGGER "!teamstream "
-/*
 #define TEAMSTREAM_CHAT_TRIGGER_LEN 12
 #define LINKS_CHAT_TRIGGER "!links "
 #define LINKS_CHAT_TRIGGER_LEN 7
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
 #define LINKS_CHAT_DELAY 200 // for IDT_LINKS_CHAT_TIMER
-*/
+
 /* license.cpp includes */
 //#include <string>
 
@@ -125,10 +149,14 @@ class TeamStream
 	public:
 		TeamStream(void);
 		~TeamStream(void);
+// dbg
+static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK) ; }
+//void CHAT(char* msg) { SendChatPvtMsg(msg , g_client->GetUserName()) ; }
 
 		// helpers
 		static char* TrimUsername(char* username) ;
 		static WDL_String ValidateHost(LPSTR lpszCmdParam) ;
+
 		// config helpers
 		static bool ReadTeamStreamConfigBool(char* aKey , bool defVal) ;
 		static void WriteTeamStreamConfigBool(char* aKey , bool aBool) ;
@@ -138,30 +166,53 @@ class TeamStream
 
 		// user creation/destruction/query
 		static int GetNUsers() ;
+		static int GetNRemoteUsers() ;
 		static void InitTeamStream() ;
 		static void AddLocalUser(char* username , int chatColor , char* fullUserName) ;
+		static int AddUser(char* username , char* fullUserName) ;
+		static void RemoveUser(char* fullUserName) ;
 		static bool IsTeamStreamUsernameCollision(char* shortUsername) ;
 		static bool IsLocalTeamStreamUserExist() ;
 		static bool IsUserIdReal(int userId) ;
 		static TeamStreamUser* GetUserById(int userId) ;
 		static int GetUserIdByName(char* username) ;
+		static char* GetUsernameByLinkIdx(int linkIdx) ;
+		static int GetLowestVacantLinkIdx() ;
 		static int TeamStream::GetChatColorIdxByName(char* username) ;
 
+		// TeamStream user state functions
+		static void SetLink(int userId , char* username , int linkIdx , bool isClobber) ;
+		static bool ShiftRemoteLinkIdx(int userId , bool isMoveUp) ;
+
 		// user state getters/setters
+		static void ResetLocalTeamStreamState() ;
+		static char* GetUsername(int userId) ;
 		static bool GetTeamStreamMode(int userId) ;
 		static void SetTeamStreamMode(int userId , bool isEnable) ;
+		static int GetLinkIdx(int userId) ;
+		static void SetLinkIdx(int userId , int linkIdx) ;
 		static HWND GetUserGUIHandleWin32(int userId) ;
 		static int GetChatColorIdx(int userId) ;
+		static void SetUserGUIHandleWin32(int userId , HWND hwnd) ;
 		static void SetChatColorIdx(int userId , int chatColorIdx) ;
 
 		// chat messages
 		static void SendChatMsg(char* chatMsg) ;
 		static void SendChatPvtMsg(char* chatMsg , char* destUserName) ;
 		static void SendTeamStreamChatMsg(bool isPrivate , char* destUserName) ;
+		static void SendLinksReqChatMsg(char* fullUserName) ;
+		static void SendLinksChatMsg(bool isPrivate , char* destUserName) ;
 		static void SendChatColorChatMsg(bool isPrivate , char* destFullUserName) ;
 
 		// GUI delegates
 		static void (*Set_TeamStream_Mode_GUI)(int userId , bool isEnable) ;
+		static void (*Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) ;
+#if TEAMSTREAM_GUI_LISTVIEW
+		static void (*Add_User_To_Links_Listbox)(char* fullUserName) ;
+		static void (*Remove_User_From_Links_Listbox)(char* username) ;
+		static void (*Reset_Links_Listbox)() ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
 		static COLORREF (*Get_Chat_Color)(int idx) ;
 		static void (*Send_Chat_Message)(char* chatMsg) ; // merged
 		static void (*Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) ; // merged

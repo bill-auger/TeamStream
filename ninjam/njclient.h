@@ -76,6 +76,11 @@
 
 #include "netmsg.h"
 
+#include "teamstream.h"
+
+
+extern WDL_Mutex g_client_mutex ;
+
 
 class I_NJEncoder;
 class RemoteDownload;
@@ -166,6 +171,7 @@ public:
   void SetOggOutFile(FILE *fp, int srate, int nch, int bitrate=128);
   WaveWriter *waveWrite;
 
+	int GetUserId(int userIdx) ;
 
   int LicenseAgreement_User32;
   int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts

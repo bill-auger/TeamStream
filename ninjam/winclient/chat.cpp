@@ -33,10 +33,68 @@ HWND g_hwnd ;
 bool cfg_color_names_only = false ;
 
 
+bool isFullUserNameLocal(char* fullUserName) { return (!strcmp(fullUserName , g_client->GetUserName())) ; }
+
+bool isUsernameLocal(char* username) { return (!strcmp(username , TeamStream::GetUsername(USERID_LOCAL))) ; }
+
 void handleChatColorMsg(char* username , char* msgIn)
 {
 	int userId = TeamStream::GetUserIdByName(username) ; int idx = atoi(msgIn + COLOR_CHAT_TRIGGER_LEN) ;
 	if (userId > USERID_LOCAL) TeamStream::SetChatColorIdx(userId , idx) ;
+}
+
+void handleTeamStreamMsg(char* fullUserName , char* username , char* msgIn , bool isPrivate)
+{
+	bool isEnableTeamStream = !strcmp(msgIn + TEAMSTREAM_CHAT_TRIGGER_LEN , "enabled") ;
+	WDL_String msgOut ; msgOut.Set(username) ;
+	msgOut.Append((isEnableTeamStream)? " is in TeamStream mode" : " is in NinJam mode") ;
+	chat_addline("TeamStream" , msgOut.Get()) ;
+
+	int userId = TeamStream::AddUser(username , fullUserName) ; if (userId <= USERID_LOCAL) return ;
+
+	if (!isEnableTeamStream || !TeamStream::IsTeamStreamUsernameCollision(username))
+		TeamStream::SetTeamStreamMode(userId , isEnableTeamStream) ;
+	bool isFirstReply = (!TeamStream::GetNRemoteUsers()) ;
+	if (isPrivate) { if (isFirstReply) TeamStream::SendLinksReqChatMsg(fullUserName) ; }
+	else { TeamStream::SendTeamStreamChatMsg(true , fullUserName) ; TeamStream::SendChatColorChatMsg(true , fullUserName) ; }
+
+// TODO: we could combine SendTeamStreamChatMsg() with SendChatColorChatMsg()
+// TODO: in order for ID_TEAMSTREAM_LOAD/SAVE to work we need to check the current link order now
+//	if (!isPrivate) and SetLink() now if match (i think this means bringing back the m_links array)
+// and to be sure to remove exitting users only from the listview but keep them in the array?
+}
+
+void handleLinksReqMsg(char* fullUserName)
+	{ if (TeamStream::GetNUsers()) TeamStream::SendLinksChatMsg(true , fullUserName) ; }
+
+void handleLinksMsg(char* senderUsername , char* msgIn)
+{
+	WDL_String msgOut ; msgOut.Set("Link order:") ;
+	int linkIdx ; int lastUsernameIdx = LINKS_CHAT_TRIGGER_LEN ; int usernameLen = -1 ;
+	for (linkIdx = 0 ; linkIdx < N_LINKS ; ++linkIdx)
+	{
+		// parse username
+		lastUsernameIdx += usernameLen + 1 ; usernameLen = -1 ; char aChar ;
+		do aChar = msgIn[lastUsernameIdx + (++usernameLen)] ;
+		while (aChar && aChar != ' ') ; if (!usernameLen) return ;
+
+		char username[255] ; strncpy(username , msgIn + lastUsernameIdx , usernameLen) ; username[usernameLen] = '\0' ;
+
+#if IS_CHAT_LINKS
+		// chat full link order
+		int userId = TeamStream::GetUserIdByName(username) ; msgOut.Append("\n") ;
+		char linkMsg[255] ; sprintf(linkMsg , "Link %d: %s" , linkIdx + 1 , username) ; msgOut.Append(linkMsg) ;
+		if (userId == USERID_NOBODY && strcmp(username , USERNAME_NOBODY)) msgOut.Append(" is not here") ;
+#else IS_CHAT_LINKS
+		int userId = TeamStream::GetUserIdByName(username) ;
+#endif IS_CHAT_LINKS
+
+		// set link
+		if (!isUsernameLocal(senderUsername))
+			if (TeamStream::IsUserIdReal(userId)) TeamStream::SetLink(userId , username , linkIdx , true) ;
+			else TeamStream::Set_Link_GUI(USERID_NOBODY , username , linkIdx , N_LINKS) ;
+	}
+	chat_addline("TeamStream" , msgOut.Get()) ;
 }
 
 bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)
@@ -45,6 +103,12 @@ bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool 
 
 	if (!strncmp(msgIn , COLOR_CHAT_TRIGGER , COLOR_CHAT_TRIGGER_LEN))
 		{ if (isHandleTriggers) handleChatColorMsg(username , msgIn) ; }
+	else if (!strncmp(msgIn , TEAMSTREAM_CHAT_TRIGGER , TEAMSTREAM_CHAT_TRIGGER_LEN))
+		{ if (isHandleTriggers) handleTeamStreamMsg(fullUserName , username , msgIn , isPrivate) ; }
+	else if (!strncmp(msgIn , LINKS_REQ_CHAT_TRIGGER , LINKS_REQ_CHAT_TRIGGER_LEN))
+		{ if (isHandleTriggers) handleLinksReqMsg(fullUserName) ; }
+	else if (!strncmp(msgIn , LINKS_CHAT_TRIGGER , LINKS_CHAT_TRIGGER_LEN))
+		{ if (isHandleTriggers) handleLinksMsg(username , msgIn) ; }
 	else return false ; // default chat processing
 	return true ; // suppress default chat processing
 }
@@ -308,7 +372,6 @@ void chatRun(HWND hwndDlg)
 		SendMessage(m_hwnd , EM_SETSEL , oldsels , oldsele) ; t = txt ; lt = ' ' ; sub = 0 ;
 		// original link parser code was here ------->
 */
-
 	}
 
   if (GetFocus() == m_hwnd)      

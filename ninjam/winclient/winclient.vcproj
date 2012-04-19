@@ -432,10 +432,6 @@
 					</FileConfiguration>
 				</File>
 				<File
-					RelativePath="..\chanmix.h"
-					>
-				</File>
-				<File
 					RelativePath="..\mpb.cpp"
 					>
 					<FileConfiguration
@@ -502,10 +498,6 @@
 					</FileConfiguration>
 				</File>
 				<File
-					RelativePath="..\njclient.h"
-					>
-				</File>
-				<File
 					RelativePath="..\njmisc.cpp"
 					>
 					<FileConfiguration
@@ -526,10 +518,6 @@
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\njmisc.h"
-					>
 				</File>
 				<File
 					RelativePath="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\ogg_static.lib"
@@ -970,6 +958,10 @@
 			Filter="h;hpp;hxx;hm;inl"
 			>
 			<File
+				RelativePath="..\chanmix.h"
+				>
+			</File>
+			<File
 				RelativePath="..\mpb.h"
 				>
 			</File>
@@ -979,6 +971,14 @@
 			</File>
 			<File
 				RelativePath="..\netmsg.h"
+				>
+			</File>
+			<File
+				RelativePath="..\njclient.h"
+				>
+			</File>
+			<File
+				RelativePath="..\njmisc.h"
 				>
 			</File>
 			<File

@@ -50,8 +50,7 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         g_client_mutex.Enter();
         bool mute;
         char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
-        if (!un) un="";
-        SetDlgItemText(hwndDlg,IDC_USERNAME,un);
+				SetDlgItemText(hwndDlg , IDC_USERNAME , TeamStream::TrimUsername(un)) ;
         g_client_mutex.Leave();
 
         ShowWindow(GetDlgItem(hwndDlg,IDC_DIV),m_user ? SW_SHOW : SW_HIDE);
@@ -66,8 +65,19 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
           g_client->SetUserState(m_user,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
           g_client_mutex.Leave();
         break;
-      }
+
+				// link assignment and ordering (see also winclient.cpp MainProc())
+        case IDC_LINKUP: case IDC_LINKDN:
+					if (TeamStream::ShiftRemoteLinkIdx(g_client->GetUserId(m_user) , (LOWORD(wParam) == IDC_LINKUP)))
+						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
+        break ;
+			}
     break;
+
+		case WM_TIMER:
+			if (wParam == IDT_LINKS_CHAT_TIMER)
+				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
+		break ;
   }
   return 0;
 }
@@ -101,7 +111,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       {
         g_client_mutex.Enter();
         char *un=g_client->GetUserState(user,NULL,NULL,NULL);
-        SetDlgItemText(hwndDlg,IDC_USERNAME,un?un:"");
+        SetDlgItemText(hwndDlg , IDC_USERNAME , TeamStream::TrimUsername(un)) ;
 
         bool sub=0,m=0,s=0;
         float v=0,p=0;
@@ -263,7 +273,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
             {
               // this is our wnd
             }
-            else
+            else // this is the new user groupbox
             {
               if (h) DestroyWindow(h);
               h=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_REMOTEUSER),hwndDlg,RemoteUserItemProc);
@@ -272,6 +282,10 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
               ShowWindow(h,SW_SHOWNA);
               did_sizing=1;
+
+// TODO: this m_children.Set(pos,h); maybe just what we need for swapping user positions
+//		it would appear that 'us' id userIdx does that imply that 'pos' is the vertical windows stack pos?
+							TeamStream::SetUserGUIHandleWin32(us , h) ;
             }
             SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,0);
             RECT r;
@@ -298,7 +312,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
             if (pos < m_children.GetSize() && GetWindowLong(h=m_children.Get(pos),GWL_USERDATA) >= 0)
             {
             }
-            else
+            else // this is a user channel
             {
               if (h) DestroyWindow(h);
               h=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_REMOTECHANNEL),hwndDlg,RemoteChannelItemProc);
@@ -511,5 +525,3 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
   }
   return 0;
 }
-
-

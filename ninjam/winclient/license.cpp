@@ -45,12 +45,12 @@ string makeHostString()
 
 string makeLicenseFilename()
 {
-	string licenseFilename(makeHostString()) ; licenseFilename += "_license.txt" ;
+	string licenseFilename(makeHostString()) ; licenseFilename += SERVER_LICENSE_TEXTFILE ;
 
 	return licenseFilename ;
 }
 
-string makeAgreeKey() { string agreeKey(makeHostString()) ; return (agreeKey = "agree_" + agreeKey); }
+string makeAgreeKey() { string agreeKey(makeHostString()) ; return (agreeKey = AGREE_CFG_KEY + agreeKey); }
 
 string stripLineEnds(string aString)
 {

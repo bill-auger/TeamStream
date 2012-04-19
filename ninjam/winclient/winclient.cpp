@@ -47,6 +47,10 @@
 
 #define CONFSEC "ninjam"
 
+#define TEAMSTREAM_CONFSEC "teamstream"
+#include <Wininet.h> // for httpGetString() // TODO: perhaps use the JNL lib
+
+
 WDL_String g_ini_file;
 WDL_Mutex g_client_mutex;
 audioStreamer *g_audio;
@@ -66,8 +70,12 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
-static bool g_kick_duplicate_username = true ;
 static bool g_is_teamstream_init_once = false ;
+static bool g_kick_duplicate_username = true ;
+#if TEAMSTREAM_GUI_LISTVIEW
+static HWND m_links_listview ; static HWND m_links_listbox ; static int m_curr_btn_idx ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+
 
 // chat colors
 COLORREF m_chat_colors[N_CHAT_COLORS] =
@@ -81,12 +89,211 @@ int m_color_btn_ids[N_CHAT_COLORS] =
 static HWND m_chat_display , m_horiz_split , m_vert_split ;
 static HWND m_color_picker_toggle , m_color_picker , m_color_btn_hwnds[N_CHAT_COLORS] ;
 
-	
+
+/* web server requests */
+
+#if UPDATE_CHECK_IMPLEMENTED // perhaps user JNL lib instead
+void httpGetString(char* url , char* outBuff , int buffSize)
+{
+bool DEBUG = false ;
+//char userAgent[255] ; sprintf(userAgent , "TeamStream (%s)" , UPDATE_URL) ;
+	char* userAgent = "generictextonlyuseragent" ;
+	CHAR acceptHeader[] = "Accept: */*\r\n\r\n";
+	int chunkSize = buffSize - 1 ;
+
+	if (InternetAttemptConnect(0) == ERROR_SUCCESS)
+	{ if (DEBUG) MessageBox(NULL , "InternetAttemptConnect() success" , "HttpGetFile()" , MB_OK) ;
+
+		HINTERNET inet = InternetOpen((LPCSTR)userAgent , INTERNET_OPEN_TYPE_DIRECT , NULL , NULL , NULL) ;
+		if (inet != NULL)
+		{ if (DEBUG) MessageBox(NULL , "InternetOpen() success" , "HttpGetFile()" , MB_OK) ;
+
+			HINTERNET conn ; DWORD dwSize ;
+			
+      if (conn = InternetOpenUrl(inet , (CHAR*)url , acceptHeader , lstrlen(acceptHeader) ,
+				INTERNET_FLAG_RELOAD , 0))
+      { if (DEBUG) MessageBox(NULL , "InternetOpenUrl() success" , "HttpGetFile()" , MB_OK) ; bool isFirstReadDBG = true ;
+
+				if (InternetReadFile(conn , outBuff , chunkSize ,  &dwSize))
+					{ if (DEBUG) MessageBox(NULL , "InternetReadFile() success" , "HttpGetFile()" , MB_OK) ; }
+				else if (DEBUG) MessageBox(NULL , "InternetReadFile() fail" , "HttpGetFile()" , MB_OK) ;
+				outBuff[dwSize] = '\0' ; InternetCloseHandle(conn) ;
+
+			} else { if (DEBUG) MessageBox(NULL , "InternetOpenUrl() fail" , "HttpGetFile()" , MB_OK) ; }
+		} else { if (DEBUG) MessageBox(NULL , "InternetOpen() fail" , "HttpGetFile()" , MB_OK) ; }
+	} else { if (DEBUG) MessageBox(NULL , "InternetAttemptConnect() fail" , "HttpGetFile()" , MB_OK) ; }
+}
+
+void checkServerForUpdate()
+{
+	//char getString[128] ; httpGetString(VERSION_CHECK_URL , getString , 128) ;
+//g_client->DBG("httpGetString" , getString) ;
+// TODO: we need to update this to parse for major.minor.rev 0.07.01
+char* expectedResult = "0.07.teamstream http://www.google.com" ;
+
+	int len ; int currentDecimalIdx = 0 ; int latestDecimalIdx = 0 ; int updateUrlIdx ;
+	len = strlen(VERSION) - 1 ; while (len--) if (VERSION[len] == '.') currentDecimalIdx = len + 1 ;
+	len = strlen(expectedResult) - 1; while (len--) if (expectedResult[len] == '.') latestDecimalIdx = len + 1 ;
+	len = strlen(expectedResult) - 1 ; while (len--) if (expectedResult[len] == ' ') updateUrlIdx = len + 1 ;
+	char updateUrl[128] ; strcpy(updateUrl , expectedResult + updateUrlIdx) ;
+
+	if (currentDecimalIdx && latestDecimalIdx && !strncmp(updateUrl , "http://" , 7))
+	{
+		int latestMajorVersion = atoi(expectedResult) ; int latestMinorVersion = atoi(expectedResult + latestDecimalIdx) ;
+		int currentMajorVersion = atoi(VERSION) ; int currentMinorVersion = atoi(VERSION + currentDecimalIdx) ;
+		if (latestMajorVersion > currentMajorVersion || latestMinorVersion > currentMinorVersion)
+		{
+			char updateChatMsg[256] ; sprintf(updateChatMsg , "%s %s ." , UPDATE_CHAT_MSG , updateUrl) ;
+			chat_addline("TeamStream", updateChatMsg) ;
+		}
+	}
+}
+#endif UPDATE_CHECK_IMPLEMENTED
+
+/* GUI helpers */
+
+void setFocusChat() { SendDlgItemMessage(g_hwnd , IDC_CHATENT , WM_SETFOCUS , 0 , 0) ; }
+
+void setBpiBpmLabels(char* bpiString , char* bpmString)
+	{ SetDlgItemText(g_hwnd , IDC_BPILBL , bpiString) ; SetDlgItemText(g_hwnd , IDC_BPMLBL , bpmString) ; }
+
+void setTeamStreamMenuItems(bool isOn)
+{
+	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_ON , (isOn)? MF_CHECKED : MF_UNCHECKED) ;
+	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ;
+}
+
+#if TEAMSTREAM_GUI_LISTVIEW
+// GUI listView functions
+int getLinkIdxByBtnIdx(int btnIdx)
+{
+	int btnIdxs[N_LINKS] ; SendMessage(m_links_listview ,
+			(UINT)LVM_GETCOLUMNORDERARRAY , (WPARAM)N_LINKS , (LPARAM)btnIdxs) ;
+	int linkIdx = 0 ; while (btnIdxs[linkIdx] != btnIdx) ++linkIdx ; return linkIdx ;
+}
+
+int getBtnIdxByLinkIdx(int linkIdx)
+{
+	int btnIdxs[N_LINKS] ; SendMessage(m_links_listview ,
+			(UINT)LVM_GETCOLUMNORDERARRAY , (WPARAM)N_LINKS , (LPARAM)btnIdxs) ;
+	return btnIdxs[linkIdx] ;
+}
+
+void initLinksListViewColumns()
+{
+	if (m_links_listview == NULL) return ;
+
+	RECT listViewRect ; GetClientRect(m_links_listview , &listViewRect) ;
+	int col ; for (col = 0 ; col < N_LINKS ; ++col)
+	{
+		LVCOLUMN lvColumn ; memset(&lvColumn , 0 , sizeof(LVCOLUMN)) ;
+		lvColumn.mask = LVCF_TEXT | LVCF_WIDTH ;//| LVCF_FMT ;//LVCF_SUBITEM
+//		lvColumn.iSubItem = col ; // seems it gets this automatically
+		lvColumn.cx = (int)(listViewRect.right / N_LINKS) ; lvColumn.pszText = "Nobody" ;
+//		lvColumn.fmt = HDF_FIXEDWIDTH ; // doesnt seem to work - may need to subclass
+		SendMessage(m_links_listview , (UINT)LVM_INSERTCOLUMN , (WPARAM)col , (LPARAM)&lvColumn) ;
+	}
+	SendMessage(m_links_listview , (UINT)LVM_SETEXTENDEDLISTVIEWSTYLE ,
+		(WPARAM)LVS_EX_HEADERDRAGDROP , (LPARAM)LVS_EX_HEADERDRAGDROP) ;
+	InvalidateRect(m_links_listview , &listViewRect , TRUE) ;
+}
+
+void getLinksListViewColumnText(int btnIdx , char* username , int buffSize)
+{
+	LVCOLUMN lvColumn ; memset(&lvColumn , 0 , sizeof(LVCOLUMN)) ; lvColumn.mask = LVCF_TEXT ;
+	lvColumn.pszText = (LPSTR)username ; lvColumn.cchTextMax = buffSize ;
+	SendMessage(m_links_listview , (UINT)LVM_GETCOLUMN , (WPARAM)btnIdx , (LPARAM)&lvColumn) ;
+}
+
+void setLinksListViewColumnText(int linkIdx , char* username)
+{
+	int btnIdxs[N_LINKS] ; 
+	SendMessage(m_links_listview , (UINT)LVM_GETCOLUMNORDERARRAY , (WPARAM)N_LINKS , (LPARAM)btnIdxs) ;
+	int btnIdx = btnIdxs[linkIdx] ;
+
+	LVCOLUMN lvColumn ; memset(&lvColumn , 0 , sizeof(LVCOLUMN)) ; lvColumn.mask = LVCF_TEXT ;
+	char btnText[255] ; lvColumn.pszText = (LPSTR)&btnText ; lvColumn.cchTextMax = 255 ;
+	SendMessage(m_links_listview , (UINT)LVM_GETCOLUMN , (WPARAM)btnIdx , (LPARAM)&lvColumn) ;
+	lvColumn.pszText = username ;
+	SendMessage(m_links_listview , (UINT)LVM_SETCOLUMN , (WPARAM)btnIdx , (LPARAM)&lvColumn) ;
+}
+
+/*void reorderLinksListViewColumns(int* order)
+LVM_SETCOLUMNORDERARRAY
+	wParam - Size, in elements, of the buffer at lParam.
+	lParam - Pointer to an array that specifies the order in which columns should be displayed, from left to right.
+		For example, if the contents of the array are {2,0,1}, the control displays column 2, column 0, and column 1 in that order.
+}*/
+
+void dbgListbox()
+{
+	// trying to add/remove items to a listbox via chat msg would usually crash
+	int i ; int nItems = SendMessage(m_links_listbox , (UINT)LB_GETCOUNT , 0 , 0) ;
+	char names[1024] ; sprintf(names , "%d items=" , nItems) ;
+	for (i = 0 ; i < nItems ; ++i)
+	{
+		char aName[255] ; SendMessage(m_links_listbox , (UINT)LB_GETTEXT , (WPARAM)i ,
+			reinterpret_cast<LPARAM>((LPCTSTR)aName)) ;
+		char* aFullName = (char*)SendMessage(m_links_listbox , (UINT)LB_GETITEMDATA , (WPARAM)i , 0) ;
+		char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(names , name) ; }
+	g_client->DBG("names" , names) ;
+	}
+}
+
+void resetLinksListbox() { SendMessage(m_links_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
+
+void setLinkListbox(bool isResizeOnly , bool isHidden)
+{
+	int linkIdx = getLinkIdxByBtnIdx(m_curr_btn_idx) ; if (linkIdx == N_LINKS) return ;
+
+	RECT lvRect ; GetWindowRect(m_links_listview , &lvRect) ; POINT* lvPos = new POINT ;
+	lvPos->x = lvRect.left ; lvPos->y = lvRect.bottom ; ScreenToClient(g_hwnd , lvPos) ;
+	int w = (lvRect.right - lvRect.left) / N_LINKS ; int h = (g_client->GetNumUsers() + 1) * 120 ;
+	int x = lvPos->x + (linkIdx * w) ; int y = lvPos->y ;
+	UINT flags = (isResizeOnly)? (SWP_NOACTIVATE | SWP_NOMOVE) :
+							((isHidden)? (SWP_NOACTIVATE | SWP_HIDEWINDOW) : SWP_SHOWWINDOW) ;
+	// oddly HWND_TOPMOST places combo visibly topmost but clicks fall through to underlying controls
+	// HWND_TOP places combo visibly beneath other controls but all items ARE clickable
+
+	SetWindowPos(m_links_listbox , HWND_TOP , x , y - 4 , w + 1 , h , flags) ;
+
+//BringWindowToTop(m_link_listbox) ; // SetForegroundWindow()
+//ShowWindow(m_link_listbox , SW_SHOW) ;
+}
+
+void addUserToLinksListbox(char* username) // may not need
+{
+/* trying to add/remove items to a listbox via chat msg would usually crash
+//if (!m_links_listbox) g_client->DBG("","!m_links_listbox") ; else  // this didnt help
+g_client_mutex.Enter() ; // this didnt help
+try { // this didnt help
+	ListBox_AddString(m_links_listbox , (LPCSTR)username) ; // 	SendMessage(m_links_listbox , (UINT)LB_ADDSTRING , 0 , (LPARAM)username) ;
+} catch (int param) { "int exception"; } catch (char param) { "char exception"; } catch (...) { "default exception"; } g_client_mutex.Leave();
+//dbgListbox() ;
+*/
+}
+void removeUserFromLinksListbox(char* username) // may not need
+{
+/* trying to add/remove items to a listbox via chat msg would usually crash
+	int listIdx = SendMessage(m_links_listbox , LB_FINDSTRINGEXACT , -1 ,
+		reinterpret_cast<LPARAM>((LPCTSTR)username)) ;
+	if (listIdx != LB_ERR) SendMessage(m_links_listbox , LB_DELETESTRING , listIdx , 0) ;
+
+// TODO: also remove from listView if necessary (for the sake of ID_TEAMSTREAM_LOAD/SAVE this maybe all thats necessary when a user bails)
+dbgListbox(listIdx , username , "removed") ;
+*/
+}
+#endif TEAMSTREAM_GUI_LISTVIEW
+
+
 /* chat functions */
 
 void SendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
 
 void SendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
+
+COLORREF getChatColor(int idx) { return m_chat_colors[idx] ; }
+
 BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam)
 {
 	switch (uMsg)
@@ -109,20 +316,59 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 			TeamStream::WriteTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , btnIdx) ;
 		}
 		break ;
+
+		case WM_KILLFOCUS: setFocusChat() ; break ; //In case you care, wParam will be the handle of the window that's receiving the focus.
 	}
 
 	return 0 ;
 }
 
-COLORREF getChatColor(int idx) { return m_chat_colors[idx] ; }
+/* GUI functions */
+
+void setTeamStreamModeGUI(int userId , bool isEnable)
+{
+	UINT showHide = (isEnable)? SW_SHOWNA : SW_HIDE ;
+	if (userId == USERID_LOCAL)
+	{
+		setTeamStreamMenuItems(isEnable) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
+	}
+	else
+	{
+		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) , showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) , showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) , showHide) ;
+	}
+}
+
+void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
+{
+	char linkPosText[24] ;
+//	if (linkIdx == N_LINKS) sprintf(linkPosText , "TeamStream Position:  ") ;
+	if (linkIdx == N_LINKS) sprintf(linkPosText , "Listening Only") ; // TODO: decide
+//	if (linkIdx == N_LINKS) sprintf(linkPosText , "Not TeamStreaming") ;
+	else sprintf(linkPosText , "TeamStream Position: %d" , linkIdx + 1) ;
+	if (userId == USERID_LOCAL) SetDlgItemText(g_hwnd , IDC_LINKLBL , linkPosText) ;
+	else if (userId > USERID_LOCAL)
+		SetDlgItemText(TeamStream::GetUserGUIHandleWin32(userId) , IDC_LINKLBL , linkPosText) ;
+
+#if TEAMSTREAM_GUI_LISTVIEW
+	if (prevLinkIdx != N_LINKS) setLinksListViewColumnText(prevLinkIdx , "Nobody") ;
+	setLinksListViewColumnText(linkIdx , username) ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+}
 
 
-/* GUI helpers */
+/* init */
 
-void setTeamStreamMenuItems(bool isOn)
-{	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_ON , (isOn)? MF_CHECKED : MF_UNCHECKED) ;
-	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ; }
-
+void winInit() { TeamStream::InitTeamStream() ;
+#if UPDATE_CHECK_IMPLEMENTED
+checkServerForUpdate() ;
+#endif UPDATE_CHECK_IMPLEMENTED
+}
 
 void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 {
@@ -157,30 +403,7 @@ void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 }
 
 
-// GUI functions
-void setTeamStreamModeGUI(int userId , bool isEnable)
-{
-/* TeamStreamMode nyi this commit let's keep these hidden for now
-	UINT showHide = (isEnable)? SW_SHOWNA : SW_HIDE ;
-	if (userId == USERID_LOCAL)
-	{
-		setTeamStreamMenuItems(isEnable) ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
-	}
-	else
-	{
-		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) , showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) , showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) , showHide) ;
-	}
-*/
-}
-
-
-/* ninjam core */
+/* ninjam */
 
 static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -649,10 +872,64 @@ static DWORD WINAPI ThreadFunc(LPVOID p)
 
 #include "../chanmix.h"
 
+#if HORIZ_RESIZE_IMPLEMENTED
+int g_last_resize_x_pos ;
+int g_last_resize_y_pos ;
+static void resizeBottomPanesHoriz(HWND hwndDlg , int x_pos , WDL_WndSizer &resize , int doresize)
+{
+  // move things, specifically 
+	// IDC_DIV4 : left and right
+	// IDC_CHATGRP, IDC_CHATDISP, IDC_CHATENT , IDC_COLORPICKERTOGGLE: left
+  // IDC_DIV2 : top and bottom
+  // IDC_LOCGRP, IDC_LOCRECT: bottom
+  // IDC_REMGRP, IDC_REMOTERECT: top
+  RECT div ;
+  GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV4) , &div) ; ScreenToClient(hwndDlg , (LPPOINT) &div) ;
+  int dx = x_pos - div.left ; g_last_resize_x_pos = x_pos ;
 
+  RECT new_rect ;
+  GetClientRect(hwndDlg , &new_rect) ;
+  RECT m_orig_rect = resize.get_orig_rect() ;
+  {
+    WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV4) ;
+    if (rec)
+    {
+      int nt = rec->last.left + dx ;
+      if (nt < rec->real_orig.left) dx = rec->real_orig.left - rec->last.left ;
+      else if ((new_rect.right - nt) < (m_orig_rect.right - rec->real_orig.left))
+        dx = new_rect.right - (m_orig_rect.right - rec->real_orig.left) - rec->last.left ;
+    }
+  }
+
+//  int tab[] = { IDC_DIV2 , IDC_LOCGRP , IDC_LOCRECT , IDC_REMGRP , IDC_REMOTERECT } ;
+	int tab[] = { IDC_DIV4 , IDC_CHATGRP , IDC_CHATDISP , IDC_CHATENT , IDC_COLORPICKERTOGGLE } ;
+	int i ; int tabSize = sizeof(tab) / sizeof(tab[0]) ;
+  for (i = 0 ; i < tabSize ; ++i)
+  {
+    WDL_WndSizer__rec *rec = resize.get_item(tab[i]) ; if (!rec) continue ;
+
+    RECT new_l = rec->last ;
+    if (!i || i > 2) // do left
+      rec->orig.left = new_l.left + dx - (int)((new_rect.right - m_orig_rect.right) * rec->scales[1]) ;
+// TODO: what is this rec->scales[]
+    if (i <= 2) // do right
+      rec->orig.right = new_l.right + dx - (int)((new_rect.right - m_orig_rect.right) * rec->scales[3]) ;
+    if (doresize) resize.onResize(rec->hwnd) ;
+  }
+
+
+  if (doresize)
+  {
+    if (m_locwnd) SendMessage(m_locwnd , WM_LCUSER_RESIZE , 0 , 0) ;
+    if (m_remwnd) SendMessage(m_remwnd , WM_LCUSER_RESIZE , 0 , 0) ;
+  }
+}
+
+static void resizeLeftPanesVert(HWND hwndDlg , int y_pos , WDL_WndSizer &resize , int doresize)
+#else HORIZ_RESIZE_IMPLEMENTED
 int g_last_resize_pos;
-
 static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
+#endif HORIZ_RESIZE_IMPLEMENTED
 {
   // move things, specifically 
   // IDC_DIV2 : top and bottom
@@ -662,7 +939,11 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
   GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
   ScreenToClient(hwndDlg,(LPPOINT)&divr);
 
+#if HORIZ_RESIZE_IMPLEMENTED
+	g_last_resize_y_pos = y_pos ;
+#else HORIZ_RESIZE_IMPLEMENTED
   g_last_resize_pos=y_pos;
+#endif HORIZ_RESIZE_IMPLEMENTED
 
   int dy = y_pos - divr.top;
 
@@ -737,45 +1018,55 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         resize.init(hwndDlg);
 
-        // top items
-        resize.init_item(IDC_MASTERVOL,  0.0,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROVOL,   0.0,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_MASTERVOLLBL,  0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_MASTERPANLBL,  0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROVOLLBL,   0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROPANLBL,   0.7f,  0.0,  0.7f,  0.0);
-
-        resize.init_item(IDC_MASTERPAN,  0.7f,  0.0,  0.8f,  0.0);
-        resize.init_item(IDC_METROPAN,   0.7f,  0.0,  0.8f,  0.0);
-        resize.init_item(IDC_MASTERMUTE, 0.8f,  0.0,  0.8f,  0.0);
-        resize.init_item(IDC_METROMUTE,  0.8f,  0.0,  0.8f,  0.0);
-        resize.init_item(IDC_MASTERVU,   0.8f,  0.0,  1.0f,  0.0);
-        resize.init_item(IDC_MASTERVULBL,0.8f,  0.0,  1.0f,  0.0);
-        
-               
-        resize.init_item(IDC_DIV1,        0.0,  0.0,  1.0f,  0.0);
-        resize.init_item(IDC_DIV3,        0.0,  0.0,  1.0f,  0.0);
-        
-        resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
-    
-        
-        float chat_ratio=0.0f;
-
-				resize.init_item(IDC_CHATGRP ,			chat_ratio ,	0.0f ,			1.0f,			1.0f) ;
-				resize.init_item(IDC_CHATDISP ,			chat_ratio ,	0.0f ,			1.0f,			1.0f) ;
-				resize.init_item(IDC_CHATENT ,			chat_ratio ,	1.0f ,			1.0f,			1.0f) ;
+				// left and right 0.0 -> float left , 1.0 -> float right
+				// top and bottom 0.0 -> float top , 1.0 -> float bottom
+				float chatRatio = 1.0f ; float chanRatio = 0.3f ;
+				//																left				top					right			bottom     
+				// divs
+        resize.init_item(IDC_DIV1 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
+				resize.init_item(IDC_DIV2 ,					0.0 ,			chanRatio ,		chatRatio ,	chanRatio) ;
+				resize.init_item(IDC_DIV3 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
+				resize.init_item(IDC_DIV4 ,					chatRatio ,	0.0 ,				chatRatio ,	0.0) ;
+				// master (top left)
+				resize.init_item(IDC_MASTERGRP ,			0.0f ,			0.0f ,				chatRatio,	0.0f) ;
+				resize.init_item(IDC_MASTERMUTE ,		0.0f ,			0.0f ,				0.0f,			0.0f) ;
+				resize.init_item(IDC_MASTERVOLLBL ,	0.0f ,			0.0f ,				0.0f,			0.0f) ;
+				resize.init_item(IDC_MASTERPANLBL ,	0.0f ,			0.0f ,				0.0f,			0.0f) ;
+				resize.init_item(IDC_MASTERVOL ,			0.0f ,			0.0f ,				1.0f ,			0.0) ;
+				resize.init_item(IDC_MASTERPAN ,		1.0f ,			0.0f ,				1.0f ,			0.0) ;
+				resize.init_item(IDC_MASTERVU ,			0.0f ,			0.0f ,				1.0f ,			0.0) ;
+				resize.init_item(IDC_MASTERVULBL ,		0.8f ,			0.0 ,				1.0f ,			0.0) ;
+				// metro (top right)
+				resize.init_item(IDC_METROGRP ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_METROMUTE ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_METROVOLLBL ,		chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_METROPANLBL ,	chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_METROVOL ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_METROPAN ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_BPILBL ,				chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				resize.init_item(IDC_BPMLBL ,				chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
+				// locals (bottom left upper)
+				resize.init_item(IDC_LOCGRP ,				0.0f ,			0.0f ,				chatRatio ,	chanRatio) ;
+					/* IDC_LINKLBL IDC_LINKUP IDC_LINKDN */
+				resize.init_item(IDC_ADDCH ,				chatRatio ,	0.0f ,			chatRatio ,	0.0f) ;
+				resize.init_item(IDC_LOCRECT ,				0.0f ,			0.0f ,			chatRatio ,	chanRatio) ;
+				// remotes (bottom left lower)
+				resize.init_item(IDC_REMOTERECT ,		0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
+				resize.init_item(IDC_REMGRP ,				0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
+				// chat (bottom right) // merged
+				resize.init_item(IDC_CHATGRP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
+				resize.init_item(IDC_CHATDISP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
+				resize.init_item(IDC_CHATENT ,			chatRatio ,	1.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_COLORTOGGLE ,	1.0f ,			1.0f ,			1.0f,			1.0f) ;
-        
-        float loc_ratio = 0.5f;
-
-        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  loc_ratio);
-        
-        resize.init_item(IDC_REMOTERECT,  0.0f, loc_ratio,  chat_ratio,  1.0f);      
-        resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_REMGRP,  0.0f, loc_ratio,  chat_ratio,  1.0f);      
+				// status        
+        resize.init_item(IDC_INTERVALPOS ,		0.0f ,			1.0f ,			1.0f ,			1.0f) ;
+        resize.init_item(IDC_STATUS ,				0.0f ,			1.0f ,			0.0f ,			1.0f) ;
+        resize.init_item(IDC_STATUS2 ,			1.0f ,			1.0f ,			1.0f ,			1.0f) ;
+#if TEAMSTREAM_GUI_LISTVIEW
+// teamstream
+//IDC_LINKSLISTVIEW
+//IDC_LINKLISTBOX
+#endif TEAMSTREAM_GUI_LISTVIEW
 
         chatInit(hwndDlg);
 
@@ -826,6 +1117,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         m_remwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,RemoteOuterChannelListProc);
         
 				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
+				m_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; m_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
 				m_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
 				m_color_picker = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_COLORPICKER) , hwndDlg , ColorPickerProc) ;
 				m_color_btn_hwnds[0] = GetDlgItem(m_color_picker , IDC_COLORDKWHITE) ;
@@ -846,6 +1138,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				m_color_btn_hwnds[15] = GetDlgItem(m_color_picker , IDC_COLORDKBLUE) ;
 				m_color_btn_hwnds[16] = GetDlgItem(m_color_picker , IDC_COLORDKPURPLE) ;
 				m_color_btn_hwnds[17] = GetDlgItem(m_color_picker , IDC_COLORLTBLACK) ;
+#if TEAMSTREAM_GUI_LISTVIEW
+				m_links_listview = GetDlgItem(hwndDlg , IDC_LINKSLISTVIEW) ; initLinksListViewColumns() ;
+				m_links_listbox = GetDlgItem(hwndDlg , IDC_LINKLISTBOX) ;
+#endif TEAMSTREAM_GUI_LISTVIEW
 
         // initialize local channels from config
         {
@@ -962,13 +1258,19 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
      
         SetTimer(hwndDlg,1,50,NULL);
 
-        int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
+        int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get()); // TODO: it is DIV2 that is referenced here
+#if HORIZ_RESIZE_IMPLEMENTED
+        if (rsp) resizeLeftPanesVert(hwndDlg , rsp , resize , 1) ;
+        rsp = GetPrivateProfileInt(CONFSEC , "wnd_div4" , 0 , g_ini_file.Get()) ;
+        if (rsp) resizeBottomPanesHoriz(hwndDlg , rsp , resize , 1) ;
+#else HORIZ_RESIZE_IMPLEMENTED
         if (rsp) resizePanes(hwndDlg,rsp,resize,1);
+#endif HORIZ_RESIZE_IMPLEMENTED
 
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
 
-				TeamStream::InitTeamStream() ; 
+				winInit() ;
       }
     return 0;
     case WM_TIMER:
@@ -1109,6 +1411,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				if (strcmp(g_connect_user.Get() , "")) do_connect() ;
 				else PostMessage(g_hwnd , WM_COMMAND , (WPARAM)ID_FILE_CONNECT , 0) ;
 			}
+			// delay sending in case we click too fast
+			else if (wParam == IDT_LINKS_CHAT_TIMER)
+				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
     break;
     case WM_GETMINMAXINFO:
       {
@@ -1128,16 +1433,38 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_MOUSEMOVE:
       if (GetCapture() == hwndDlg)
       {
+#if HORIZ_RESIZE_IMPLEMENTED
+        if (cap_mode == 1) resizeLeftPanesVert(hwndDlg , GET_Y_LPARAM(lParam) - cap_spos , resize , 1) ;
+        else if (cap_mode == 2) resizeBottomPanesHoriz(hwndDlg , GET_X_LPARAM(lParam) - cap_spos , resize , 1) ;
+#else HORIZ_RESIZE_IMPLEMENTED
         if (cap_mode == 1)
         {
           resizePanes(hwndDlg,GET_Y_LPARAM(lParam)-cap_spos,resize,1);
         }
+#endif HORIZ_RESIZE_IMPLEMENTED
       }
     return 0;
     case WM_LBUTTONDOWN:
       {
         POINT p={GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
         ClientToScreen(hwndDlg,&p);
+
+#if HORIZ_RESIZE_IMPLEMENTED
+				RECT horizSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV2) , &horizSplitRect) ;
+				RECT vertSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV4) , &vertSplitRect) ;
+        if (p.x >= horizSplitRect.left && p.x <= horizSplitRect.right && 
+            p.y >= horizSplitRect.top - 4 && p.y <= horizSplitRect.bottom + 4)
+				{
+					SetCursor(LoadCursor(NULL,IDC_SIZENS)) ;
+					SetCapture(hwndDlg) ; cap_mode = 1 ; cap_spos = p.y - horizSplitRect.top ;
+				}
+				else if (p.x >= vertSplitRect.left && p.x <= vertSplitRect.right && 
+            p.y >= vertSplitRect.top - 4 && p.y <= vertSplitRect.bottom + 4)
+				{
+					SetCursor(LoadCursor(NULL,IDC_SIZEWE)) ;
+					SetCapture(hwndDlg) ; cap_mode = 2 ; cap_spos = p.x - vertSplitRect.left ;
+				}
+#else HORIZ_RESIZE_IMPLEMENTED
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
         if (p.x >= r.left && p.x <= r.right && 
@@ -1148,6 +1475,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           cap_mode=1;
           cap_spos=p.y - r.top;
         }
+#endif HORIZ_RESIZE_IMPLEMENTED
       }
     return 0;
 
@@ -1167,13 +1495,32 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           {
             if (new_rect.bottom - rec->last.top < m_orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
             {
+#if HORIZ_RESIZE_IMPLEMENTED
+							resizeLeftPanesVert(hwndDlg , 0 , resize , 0) ;
+#else HORIZ_RESIZE_IMPLEMENTED
               resizePanes(hwndDlg,0,resize,0);
+#endif HORIZ_RESIZE_IMPLEMENTED
             }
             else if (rec->last.top < rec->real_orig.top) // top section is too small, fix
             {
+#if HORIZ_RESIZE_IMPLEMENTED
+							resizeLeftPanesVert(hwndDlg , new_rect.bottom , resize , 0) ;
+#else HORIZ_RESIZE_IMPLEMENTED
               resizePanes(hwndDlg,new_rect.bottom,resize,0);
+#endif HORIZ_RESIZE_IMPLEMENTED
             }
           }
+
+#if HORIZ_RESIZE_IMPLEMENTED
+          rec = resize.get_item(IDC_DIV4) ;
+          if (rec)
+          {
+            if (new_rect.right - rec->last.left < m_orig_rect.right - rec->real_orig.left) // right section is too small, fix
+              resizeBottomPanesHoriz(hwndDlg , 0 , resize , 0) ;
+            else if (rec->last.left < rec->real_orig.left) // left section is too small, fix
+              resizeBottomPanesHoriz(hwndDlg , new_rect.right , resize , 0) ;
+          }
+#endif HORIZ_RESIZE_IMPLEMENTED
         }
 
 
@@ -1286,7 +1633,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
           {
             do_disconnect();
-
             do_connect();
           }
         break;
@@ -1313,29 +1659,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               {
                 if (str[0] == '/')
                 {
-                  if (!strncasecmp(str,"/me ",4))
-                  {
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("MSG",str);
-                    g_client_mutex.Leave();
-                  }
+                  if (!strncasecmp(str,"/me ",4)) g_client->ChatMessage_Send("MSG" , str) ;
                   else if (!strncasecmp(str,"/topic ",7)||
                            !strncasecmp(str,"/kick ",6) ||                        
                            !strncasecmp(str,"/bpm ",5) ||
-                           !strncasecmp(str,"/bpi ",5)
-                    ) // alias to /admin *
-                  {
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",str+1);
-                    g_client_mutex.Leave();
-                  }
+                           !strncasecmp(str,"/bpi ",5)) // alias to /admin *
+										g_client->ChatMessage_Send("ADMIN",str+1);
                   else if (!strncasecmp(str,"/admin ",7))
                   {
                     char *p=str+7;
                     while (*p == ' ') p++;
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",p);
-                    g_client_mutex.Leave();
+										g_client->ChatMessage_Send("ADMIN",p);
                   }
                   else if (!strncasecmp(str,"/msg ",5))
                   {
@@ -1347,9 +1681,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                     while (*p == ' ') p++;
                     if (*p)
                     {
-                      g_client_mutex.Enter();
                       g_client->ChatMessage_Send("PRIVMSG",n,p);
-                      g_client_mutex.Leave();
+
                       WDL_String tmp;
                       tmp.Set("-> *");
                       tmp.Append(n);
@@ -1367,12 +1700,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                     chat_addline("","error: unknown command.");
                   }
                 }
-                else
-                {
-                  g_client_mutex.Enter();
-                  g_client->ChatMessage_Send("MSG",str);
-                  g_client_mutex.Leave();
-                }
+								else g_client->ChatMessage_Send("MSG" , str) ;
               }
               else
               {
@@ -1384,28 +1712,83 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
         break;
 
+				case IDC_ADDCH:
+				{
+					int idx;
+					g_client_mutex.Enter();
+					int maxc=g_client->GetMaxLocalChannels();
+					for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
+
+					if (idx < maxc) 
+					{
+						g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
+						g_client->NotifyServerOfChannelChange();  
+					}
+					g_client_mutex.Leave();
+
+					if (idx >= maxc) return 0;
+
+					SendMessage(m_locwnd , WM_LCUSER_ADDCHILD , (WPARAM)idx , 0) ;
+				}
+				break ;
+
 				case IDC_COLORTOGGLE:
 				{
-					SendDlgItemMessage(hwndDlg , IDC_CHATENT , WM_SETFOCUS , 0 , 0) ;
-					if (!TeamStream::IsLocalTeamStreamUserExist()) break ;
+					setFocusChat() ; if (!TeamStream::IsLocalTeamStreamUserExist()) break ;
 
-					if (ShowWindow(m_color_picker , SW_SHOWNOACTIVATE))
+//					if (ShowWindow(m_color_picker , SW_SHOWNOACTIVATE))
+					if (ShowWindow(m_color_picker , SW_SHOW))
 						{ ShowWindow(m_color_picker , SW_HIDE) ; break ; }
 
 					RECT toggleRect ; GetWindowRect(m_color_picker_toggle , &toggleRect) ;
 					int x = toggleRect.left - 144 ; int y = toggleRect.bottom - 26 ;
-					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE | SWP_NOACTIVATE) ;
+//					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE | SWP_NOACTIVATE) ;
+					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
 				}
 				break ;
-      }
-    break;
+
+				// TeamStream menu items
+				case ID_TEAMSTREAM_ON:
+					if (TeamStream::IsLocalTeamStreamUserExist()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
+					else initTeamStreamUser(hwndDlg , true) ;
+				break ;
+				case ID_TEAMSTREAM_OFF:
+					if (TeamStream::IsLocalTeamStreamUserExist()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ; break ;
+				case ID_TEAMSTREAM_LOAD: // TODO:
+				break ;
+				case ID_TEAMSTREAM_SAVE: // TODO:
+				break ;
+
+				// link assignment and ordering (see also remchn.cpp RemoteUserItemProc())
+        case IDC_LINKUP: case IDC_LINKDN:
+					if (TeamStream::ShiftRemoteLinkIdx(USERID_LOCAL , (LOWORD(wParam) == IDC_LINKUP)))
+						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
+        break ;
+#if TEAMSTREAM_GUI_LISTVIEW
+				case IDC_LINKLISTBOX:
+				{
+					if (HIWORD(wParam) != LBN_SELCHANGE) break ;
+
+SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
+//ShowWindow(m_link_listbox , SW_HIDE) ;
+//dbgListbox() ;
+
+					int listIdx = SendMessage(m_links_listbox , LB_GETCURSEL , 0 , 0) ; if (listIdx == LB_ERR) break ; // is this possible?
+					char username[255] ; getLinkIdxColumnText(m_curr_btn_idx , username , 255) ;
+					g_client->SetLink(getLinkIdxByBtnIdx(m_curr_btn_idx) , username , true) ;
+					g_client->SendLinksChatMsg(false , NULL) ;
+				}
+        break ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+			}
+		break;
 
 		case WM_NOTIFY:
 		{
 			LPNMHDR hdr = (LPNMHDR)lParam ;
 			if (hdr->code == EN_LINK)
 			{
-				// chat web link clicked
+				// chat url link clicked
 				ENLINK* enlink = (ENLINK*)hdr ;
 				if (enlink->msg == WM_LBUTTONDOWN)
 				{
@@ -1421,6 +1804,25 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			}
 		}
 		break ;
+
+		case WM_SETCURSOR:
+			if(LOWORD(lParam) == HTCLIENT)
+			{
+				bool isChangeCursor = false ; LPCTSTR cursor ; RECT r ; POINT p ; if (!GetCursorPos(&p)) break ;
+				GetWindowRect(m_horiz_split , &r) ; // Local/Remote split
+				if (p.x >= r.left && p.x <= r.right &&  p.y >= r.top - 4 && p.y <= r.bottom + 4)
+					{ isChangeCursor = true ; cursor = IDC_SIZENS ; }
+#if HORIZ_RESIZE_IMPLEMENTED
+				GetWindowRect(m_vert_split , &r) ; // Channels/Chat split
+				if (p.x >= r.left && p.x <= r.right &&  p.y >= r.top - 4 && p.y <= r.bottom + 4)
+					{ isChangeCursor = true ; cursor = IDC_SIZEWE ; }
+#endif HORIZ_RESIZE_IMPLEMENTED
+
+				if (isChangeCursor) { SetCursor(LoadCursor(NULL , cursor)); return TRUE ; }
+			}
+		break ;
+
+//		case WM_KILLFOCUS: setFocusChat() ; break ; //In case you care, wParam will be the handle of the window that's receiving the focus.
 
     case WM_CLOSE:
       if (1) DestroyWindow(hwndDlg);
@@ -1491,9 +1893,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
+
+#if HORIZ_RESIZE_IMPLEMENTED
+				sprintf(buf , "%d" , g_last_resize_x_pos) ;
+				WritePrivateProfileString(CONFSEC , "wnd_div4" , buf , g_ini_file.Get()) ;
+#endif HORIZ_RESIZE_IMPLEMENTED
+
         sprintf(buf,"%d",g_last_resize_pos);
-        WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get());
-        
+        WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get()); // TODO: DIV2 is the one referenced here
 
         sprintf(buf,"%d",g_last_wndpos.left);
         WritePrivateProfileString(CONFSEC,"wnd_x",buf,g_ini_file.Get());
@@ -1570,8 +1977,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_user.Set(buf);
     GetPrivateProfileString(CONFSEC,"pass","",buf,sizeof(buf),g_ini_file.Get());
     g_connect_pass.Set(buf);
-    g_connect_passremember = GetPrivateProfileInt(CONFSEC , "passrem" , 0 , g_ini_file.Get()) ;
-    g_connect_anon = GetPrivateProfileInt(CONFSEC , "anon" , 1 , g_ini_file.Get()) ;
+    g_connect_passremember=GetPrivateProfileInt(CONFSEC,"passrem",1,g_ini_file.Get());
+    g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
   }
 
   { // load richedit DLL
@@ -1606,9 +2013,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
 	// GUI delegates
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
+	TeamStream::Set_Link_GUI = setLinkGUI ;
+#if TEAMSTREAM_GUI_LISTVIEW
+	TeamStream::Add_User_To_Links_Listbox = addUserToLinksListbox ;
+	TeamStream::Remove_User_From_Links_Listbox = removeUserFromLinksListbox ;
+	TeamStream::Reset_Links_Listbox = resetLinksListbox ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Get_Chat_Color = getChatColor ;
-	TeamStream::Send_Chat_Message = SendChatMessage ;
-	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ;
+	TeamStream::Send_Chat_Message = SendChatMessage ; // merged
+	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ; // merged
 
   HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));
 

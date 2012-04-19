@@ -60,7 +60,7 @@ WDL_String TeamStream::ValidateHost(LPSTR cmdParam)
 
 	// validate allowed hosts
 	int i = N_KNOWN_HOSTS ; while (i-- && m_known_hosts[i].compare(host)) ; bool isDefaultHost = (i > -1) ;
-	string confHosts = ReadTeamStreamConfigString("auto_join_hosts" , "") ;
+	string confHosts = ReadTeamStreamConfigString(AUTO_JOIN_CFG_KEY , "") ;
 	char customHosts[MAX_CONFIG_STRING_LEN] ; strcpy(customHosts , confHosts.c_str()) ;
 	char* customHost = strtok(customHosts , ",") ;
 	while (customHost && strcmp(customHost , host)) customHost = strtok(NULL , ",") ;
@@ -95,6 +95,8 @@ string TeamStream::ReadTeamStreamConfigString(char* aKey , char* defVal)
 
 int TeamStream::GetNUsers() { return m_teamstream_users.GetSize() ; }
 
+int TeamStream::GetNRemoteUsers() { return m_teamstream_users.GetSize() - N_STATIC_USERS ; }
+
 void TeamStream::InitTeamStream()
 {
 	m_teamstream_users.Add(new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY)) ;
@@ -105,6 +107,45 @@ void TeamStream::InitTeamStream()
 void TeamStream::AddLocalUser(char* username , int chatColorIdx , char* fullUserName)
 	{ m_teamstream_users.Add(new TeamStreamUser(username , USERID_LOCAL , chatColorIdx , fullUserName)) ; }
 
+int TeamStream::AddUser(char* username , char* fullUserName)
+{
+	// NOTE: server allows duplicate usernames so we must compare the full user@ip to be certain
+	// o/c the D byte is 'xxx' so let's hope the server does not allow dups on same subnet
+	// to be safe let's require unique short-username TeamStreamUser creation
+	// BUT: this still does not prevent users from typing '!teamstream enable' - so
+	// TODO: lets make a web app to handle all TeamStream state changes (authenticated only)
+	//	then send the one and only chat msg '!teamstream update' which triggers clients to poll the server
+	// then we can forget fullUserNames entirely
+	// problem is we use them quite a bit here (sending private messages for ex.)
+	// so i'm not sure if we can do without them completely though it's inherently buggy if the D byte is 'xxx'
+	// most importantly if a user crashes all we know is thier user@ip.xxx so we may need to ping
+	// rather than an elegant '!teamstream update' message unless all users notify the webserver he bailed
+	// and execute their own '!teamstream update' handler locally - we shall see
+
+	if (!IsLocalTeamStreamUserExist()) return USERID_NOBODY ;
+
+	// if user already exists just return their id
+	int i = GetNUsers() ; TeamStreamUser* aUser ;
+	while (i-- && strcmp((aUser = m_teamstream_users.Get(i))->m_full_name , fullUserName)) ;
+	int existingUserId = aUser->m_id ; if (existingUserId <= USERID_LOCAL) return existingUserId ;
+
+	m_teamstream_users.Add(new TeamStreamUser(username , m_next_id , CHAT_COLOR_DEFAULT , fullUserName)) ;
+
+	return m_next_id++ ;
+}
+
+void TeamStream::RemoveUser(char* fullUserName)
+{
+	int i = GetNUsers() ; while (i-- && strcmp(m_teamstream_users.Get(i)->m_full_name , fullUserName)) ;
+	if (i <= N_PHANTOM_USERS) return ;
+	
+	m_teamstream_users.Delete(i) ; // we wont delete ourself
+
+#if TEAMSTREAM_GUI_LISTVIEW
+	Remove_User_From_Links_Listbox(un) ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+}
+
 bool TeamStream::IsTeamStreamUsernameCollision(char* username)
 {
 	int i = GetNUsers() ; while (i-- && m_teamstream_users.Get(i)->m_name != username) ;
@@ -114,12 +155,12 @@ bool TeamStream::IsTeamStreamUsernameCollision(char* username)
 
 bool TeamStream::IsLocalTeamStreamUserExist() { return (GetNUsers() > N_PHANTOM_USERS) ; }
 
+// TODO: this is another one we can lose if we had more secure messaging
 bool TeamStream::IsUserIdReal(int userId) { return (GetUserById(userId)->m_id >= USERID_LOCAL) ; }
 
 TeamStreamUser* TeamStream::GetUserById(int userId)
 {
-	// m_teamstream_users.Get(0) -> USERID_NOBODY , m_teamstream_users.Get(1) -> USERID_TEAMSTREAM
-	// m_teamstream_users.Get(2) -> USERID_SERVER , , m_teamstream_users.Get(3) -> USERID_LOCAL
+	// m_teamstream_users.Get(0) -> USERID_NOBODY , m_teamstream_users.Get(N_PHANTOM_USERS) -> USERID_LOCAL
 	int i = GetNUsers() ; TeamStreamUser* aUser = m_bogus_user ;
 	while (i-- && (aUser = m_teamstream_users.Get(i))->m_id != userId) ;
 
@@ -134,10 +175,64 @@ int TeamStream::GetUserIdByName(char* username)
 	return aUser->m_id ;
 }
 
+char* TeamStream::GetUsernameByLinkIdx(int linkIdx)
+{
+	int i = GetNUsers() ; TeamStreamUser* aUser ;
+	while (i-- && (aUser = m_teamstream_users.Get(i))->m_link_idx != linkIdx) ;
+
+	return (i > -1)? aUser->m_name : USERNAME_NOBODY ;
+}
+
+int TeamStream::GetLowestVacantLinkIdx()
+{
+	int i = GetNUsers() ; bool linkIdxs[N_LINKS + 1] = { false } ;
+	while (i--) linkIdxs[m_teamstream_users.Get(i)->m_link_idx] = true ;
+	int linkIdx = 0 ; while (linkIdx < N_LINKS && linkIdxs[linkIdx]) ++linkIdx ;
+
+	return linkIdx ;
+}
+
 int TeamStream::GetChatColorIdxByName(char* username) { return GetChatColorIdx(GetUserIdByName(username)) ; }
 
 
+/* TeamStream user state functions */
+
+void TeamStream::SetLink(int userId , char* username , int newLinkIdx , bool isClobber)
+{
+	if (!IsUserIdReal(userId)) return ;
+
+	char* prevUsername = GetUsernameByLinkIdx(newLinkIdx) ; int prevUserId = GetUserIdByName(prevUsername) ;
+	int prevLinkIdx = GetLinkIdx(userId) ; SetLinkIdx(userId , newLinkIdx) ;
+	Set_Link_GUI(userId , username , newLinkIdx , prevLinkIdx) ;
+
+	// (isClobber) via listbox selection // else (isSwap) via listview reordering or up/dn buttons
+	if (strcmp(prevUsername , USERNAME_NOBODY))
+		SetLink(prevUserId , prevUsername , (isClobber)? N_LINKS : prevLinkIdx , false) ;
+}
+
+bool TeamStream::ShiftRemoteLinkIdx(int userId , bool isMoveUp)
+{
+	int currLinkIdx = GetLinkIdx(userId) ; int newLinkIdx ;
+	if (isMoveUp)
+	{
+		newLinkIdx = (currLinkIdx != N_LINKS)? currLinkIdx - 1 : GetLowestVacantLinkIdx() ;
+		if (currLinkIdx == 0 || newLinkIdx == N_LINKS) return false ;
+	}
+	else if (currLinkIdx != N_LINKS) newLinkIdx = currLinkIdx + 1 ; else return false ;
+
+	SetLink(userId , GetUsername(userId) , newLinkIdx , false) ; return true ;
+}
+
+
 /* user state getters/setters */
+
+void TeamStream::ResetLocalTeamStreamState()
+{
+	TeamStreamUser* localUser = GetUserById(USERID_LOCAL) ;
+	localUser->m_teamstream_enabled = false ; localUser->m_link_idx = N_LINKS ;
+}
+
+char* TeamStream::GetUsername(int userId) { return GetUserById(userId)->m_name ; }
 
 bool TeamStream::GetTeamStreamMode(int userId) { return GetUserById(userId)->m_teamstream_enabled ; }
 
@@ -157,7 +252,13 @@ void TeamStream::SetTeamStreamMode(int userId , bool isEnable)
 	GetUserById(userId)->m_teamstream_enabled = isEnable ; SendTeamStreamChatMsg(false , NULL) ;
 }
 
+int TeamStream::GetLinkIdx(int userId) { return GetUserById(userId)->m_link_idx ; }
+
+void TeamStream::SetLinkIdx(int userId , int linkIdx) { if (IsUserIdReal(userId)) GetUserById(userId)->m_link_idx = linkIdx ; }
+
 HWND TeamStream::GetUserGUIHandleWin32(int userId){ return GetUserById(userId)->m_gui_handle_w32 ; }
+
+void TeamStream::SetUserGUIHandleWin32(int userId , HWND hwnd) { if (IsUserIdReal(userId)) GetUserById(userId)->m_gui_handle_w32 = hwnd; }
 
 int TeamStream::GetChatColorIdx(int userId) { return GetUserById(userId)->m_chat_color_idx ; }
 
@@ -177,13 +278,23 @@ void TeamStream::SendChatMsg(char* chatMsg) { Send_Chat_Message(chatMsg) ; }
 void TeamStream::SendChatPvtMsg(char* chatMsg , char* destFullUserName) { Send_Chat_Pvt_Message(destFullUserName , chatMsg) ; }
 
 void TeamStream::SendTeamStreamChatMsg(bool isPrivate , char* destFullUserName)
-{/*
+{
 	if (!IsLocalTeamStreamUserExist()) return ; // initTeamStream() failure
 
 	WDL_String chatMsg ; chatMsg.Set(TEAMSTREAM_CHAT_TRIGGER) ;
 	chatMsg.Append((GetTeamStreamMode(USERID_LOCAL))? "enabled" : "disabled") ;
 	if (isPrivate) SendChatPvtMsg(chatMsg.Get() , destFullUserName) ; else SendChatMsg(chatMsg.Get()) ;
-*/
+}
+
+void TeamStream::SendLinksReqChatMsg(char* fullUserName)
+	{ SendChatPvtMsg(LINKS_REQ_CHAT_TRIGGER , fullUserName) ; }
+
+void TeamStream::SendLinksChatMsg(bool isPrivate , char* destFullUserName)
+{
+	WDL_String chatMsg ; chatMsg.Append(LINKS_CHAT_TRIGGER) ;
+	int linkIdx ; for (linkIdx = 0 ; linkIdx < N_LINKS ; ++linkIdx)
+		{ chatMsg.Append(GetUsernameByLinkIdx(linkIdx)) ; chatMsg.Append(" ") ; }
+	if (isPrivate) SendChatPvtMsg(chatMsg.Get() , destFullUserName) ; else SendChatMsg(chatMsg.Get()) ;
 }
 
 void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
@@ -196,11 +307,15 @@ void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
 /* GUI delegates */
 
 void (*TeamStream::Set_TeamStream_Mode_GUI)(int userId , bool isEnable) = NULL ;
-
+void (*TeamStream::Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) = NULL ;
+#if TEAMSTREAM_GUI_LISTVIEW
+void (*TeamStream::Add_User_To_Links_Listbox)(char* fullUserName) = NULL ;
+void (*TeamStream::Remove_User_From_Links_Listbox)(char* username) = NULL ;
+void (*TeamStream::Reset_Links_Listbox)() = NULL ;
+#endif TEAMSTREAM_GUI_LISTVIEW
+void (*TeamStream::Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) = NULL ;
 COLORREF (*TeamStream::Get_Chat_Color)(int idx) = NULL ;
-
 void (*TeamStream::Send_Chat_Message)(char* chatMsg) = NULL ;
-
 void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) = NULL ;
 
 
@@ -209,10 +324,6 @@ void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg
 // TeamStream users array (private)
 WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
 TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
+
 // known hosts vector (private)
-string TeamStream::m_known_hosts[] =
-{
-	KNOWN_HOST_NINJAM ,
-	KNOWN_HOST_NINBOT ,
-	KNOWN_HOST_NINJAMER
-} ;
+string TeamStream::m_known_hosts[] = { KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER } ;

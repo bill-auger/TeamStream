@@ -97,12 +97,18 @@ class RemoteUser_Channel
     DecodeState *ds;
     DecodeState *next_ds[2]; // prepared by main thread, for audio thread
 
+#if TEAMSTREAM_AUDIO
+		DecodeState* fifo_ds[N_TEAMSTREAM_BUFFERS] ;
+#endif
 };
 
 class RemoteUser
 {
 public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), chanpresentmask(0) { }
+
+	RemoteUser() : muted(0) , volume(1.0f) , pan(0.0f) , submask(0) , mutedmask(0) , solomask(0) , chanpresentmask(0) ,
+		m_teamstream_id(USERID_NOBODY) { }
+
   ~RemoteUser() { }
 
   bool muted;
@@ -114,6 +120,8 @@ public:
   int mutedmask;
   int solomask;
   RemoteUser_Channel channels[MAX_USER_CHANNELS];
+
+	int m_teamstream_id ;
 };
 
 
@@ -246,6 +254,7 @@ static void guidtostr(unsigned char *guid, char *str)
   int x;
   for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
 }
+
 static char *guidtostr_tmp(unsigned char *guid)
 {
   static char tmp[64];
@@ -344,7 +353,7 @@ NJClient::NJClient()
   config_savelocalaudio=0;
   config_metronome=0.5f;
   config_metronome_pan=0.0f;
-  config_metronome_mute=false;
+	config_metronome_mute = true ;
   config_debug_level=0;
   config_mastervolume=1.0f;
   config_masterpan=0.0f;
@@ -405,7 +414,6 @@ void NJClient::_reinit()
   int x;
   for (x = 0; x < m_locchannels.GetSize(); x ++)
     m_locchannels.Get(x)->decode_peak_vol=0.0f;
-
 }
 
 
@@ -618,6 +626,11 @@ void NJClient::Disconnect()
   m_wavebq->Clear();
 
   _reinit();
+
+	TeamStream::ResetLocalTeamStreamState() ;
+#if TEAMSTREAM_GUI_LISTVIEW	
+	Reset_Links_Listbox() ;
+#endif TEAMSTREAM_GUI_LISTVIEW
 }
 
 void NJClient::Connect(char *host, char *user, char *pass)
@@ -656,7 +669,6 @@ int NJClient::GetStatus()
 
   return NJC_STATUS_OK;
 }
-
 
 int NJClient::Run() // nonzero if sleep ok
 {
@@ -798,6 +810,10 @@ int NJClient::Run() // nonzero if sleep ok
             {
               updateBPMinfo(ccn.beats_minute,ccn.beats_interval);
               m_audio_enable=1;
+
+							char bpiString[256] ; sprintf(bpiString , "%d bpi" , ccn.beats_interval) ;
+							char bpmString[256] ; sprintf(bpmString , "%d bpm" , ccn.beats_minute) ;
+							TeamStream::Set_Bpi_Bpm_Labels(bpiString , bpmString) ;
             }
           }
 
@@ -869,11 +885,25 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->channels[cid].next_ds[0]=0;
                       theuser->channels[cid].next_ds[1]=0;
 
+#if TEAMSTREAM_AUDIO
+/*
+delete theuser->channels[cid].next_ds[2] ; theuser->channels[cid].next_ds[2] = 0 ;
+delete theuser->channels[cid].next_ds[3] ; theuser->channels[cid].next_ds[3] = 0 ;
+delete theuser->channels[cid].next_ds[4] ; theuser->channels[cid].next_ds[4] = 0 ;
+delete theuser->channels[cid].next_ds[5] ; theuser->channels[cid].next_ds[5] = 0 ;
+delete theuser->channels[cid].next_ds[6] ; theuser->channels[cid].next_ds[6] = 0 ;
+delete theuser->channels[cid].next_ds[7] ; theuser->channels[cid].next_ds[7] = 0 ;
+delete theuser->channels[cid].next_ds[8] ; theuser->channels[cid].next_ds[8] = 0 ;
+delete theuser->channels[cid].next_ds[9] ; theuser->channels[cid].next_ds[9] = 0 ;
+*/
+#endif TEAMSTREAM_AUDIO
+
                       if (!theuser->chanpresentmask) // user no longer exists, it seems
                       {
                         chksolo=1;
                         delete theuser;
                         m_remoteusers.Delete(x);
+												TeamStream::RemoveUser(un) ;
                       }
 
                       if (chksolo)
@@ -901,7 +931,7 @@ int NJClient::Run() // nonzero if sleep ok
               RemoteUser *theuser;
               for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),dib.username); x ++);
               if (x < m_remoteusers.GetSize() && dib.chidx >= 0 && dib.chidx < MAX_USER_CHANNELS)
-              {              
+              {
                 //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
                 if (!memcmp(dib.guid,zero_guid,sizeof(zero_guid)))
                 {
@@ -932,6 +962,24 @@ int NJClient::Run() // nonzero if sleep ok
                   int useidx=!!theuser->channels[dib.chidx].next_ds[0];
                   DecodeState *t2=theuser->channels[dib.chidx].next_ds[useidx];
                   theuser->channels[dib.chidx].next_ds[useidx]=tmp;
+
+#if TEAMSTREAM_AUDIO
+// NOTE: this section is suspiciously similar to startPlaying
+//		dunno what its for so i set a breakpoint here but have not seen it fire
+/*		so we prolly dont need this?
+theuser->channels[dib.chidx].next_ds[useidx] = theuser->channels[dib.chidx].next_ds[2] ;
+
+theuser->channels[dib.chidx].next_ds[2] = theuser->channels[dib.chidx].next_ds[3] ;
+theuser->channels[dib.chidx].next_ds[3] = theuser->channels[dib.chidx].next_ds[4] ;
+theuser->channels[dib.chidx].next_ds[4] = theuser->channels[dib.chidx].next_ds[5] ;
+theuser->channels[dib.chidx].next_ds[5] = theuser->channels[dib.chidx].next_ds[6] ;
+theuser->channels[dib.chidx].next_ds[6] = theuser->channels[dib.chidx].next_ds[7] ;
+theuser->channels[dib.chidx].next_ds[7] = theuser->channels[dib.chidx].next_ds[8] ;
+theuser->channels[dib.chidx].next_ds[8] = theuser->channels[dib.chidx].next_ds[9] ;
+theuser->channels[dib.chidx].next_ds[9] = tmp ;
+*/
+#endif TEAMSTREAM_AUDIO
+
                   m_users_cs.Leave();
                   delete t2;
                 }
@@ -1240,6 +1288,7 @@ float NJClient::GetOutputPeak()
 
 void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
 {
+	g_client_mutex.Enter() ;
   if (m_netcon)
   {
     mpb_chat_message m;
@@ -1250,6 +1299,7 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
     m.parms[4]=parm5;
     m_netcon->Send(m.build());
   }
+	g_client_mutex.Leave() ;
 }
 
 void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor)
@@ -1622,7 +1672,6 @@ void NJClient::on_new_interval()
 
 }
 
-
 char *NJClient::GetUserState(int idx, float *vol, float *pan, bool *mute)
 {
   if (idx<0 || idx>=m_remoteusers.GetSize()) return NULL;
@@ -1699,6 +1748,10 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
       delete tmp;
       delete tmp2;   
       delete tmp3;   
+
+#if TEAMSTREAM_AUDIO
+// should we do something here?
+#endif TEAMSTREAM_AUDIO
     }
     else
     {
@@ -1933,8 +1986,11 @@ void NJClient::SetWorkDir(char *path)
   }
 }
 
-
+#if TEAMSTREAM_AUDIO
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f) , pan(0.0f) , ds(NULL) , fifo_ds()
+#else TEAMSTREAM_AUDIO
 RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), ds(NULL)
+#endif TEAMSTREAM_AUDIO
 {
   memset(next_ds,0,sizeof(next_ds));
 }
@@ -1945,6 +2001,11 @@ RemoteUser_Channel::~RemoteUser_Channel()
   ds=NULL;
   delete next_ds[0];
   delete next_ds[1];
+
+#if TEAMSTREAM_AUDIO
+	int i = N_TEAMSTREAM_BUFFERS ; while (i--) delete fifo_ds[i] ;
+#endif TEAMSTREAM_AUDIO
+
   memset(next_ds,0,sizeof(next_ds));
 }
 
@@ -1996,6 +2057,21 @@ void RemoteDownload::startPlaying(int force)
     if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
        DecodeState *tmp=m_parent->start_decode(guid,m_fourcc);
+
+#if TEAMSTREAM_AUDIO
+// TODO: destroy fifo_ds buffers where necessary
+			RemoteUser_Channel* ch = &(theuser->channels[chidx]) ;
+			int linkIdx = theuser->linkIdx ; int myLinkIdx = m_parent->GetLocalLinkIdx() ;
+			// NOTE: if (linkIdx >= myLinkIdx - 1) no delay but (linkIdx == myLinkIdx == N_LINKS) only
+			// and if (linkIdx > myLinkIdx) isMuted and if (N_LINKS) not on chain (listening only)
+			if (m_parent->GetLocalTeamStreamMode() && theuser->isTeamStreamEnabled && linkIdx < myLinkIdx - 1)
+			{
+				DecodeState* pop = ch->fifo_ds[0] ;
+				int n = 0 ; int nIts = myLinkIdx - 2 - linkIdx ;
+				while (n < nIts) { ch->fifo_ds[n] = ch->fifo_ds[n + 1] ; ++n ; } // 2+ delay intervals
+				ch->fifo_ds[n] = tmp ; tmp = pop ; // 1 delay interval
+			}
+#endif
 
        DecodeState *tmp2;
        m_parent->m_users_cs.Enter();
@@ -2140,3 +2216,5 @@ void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
 #endif
 }
 
+int NJClient::GetUserId(int userIdx)
+	{ return (userIdx < GetNumUsers())? m_remoteusers.Get(userIdx)->m_teamstream_id : USERID_NOBODY ; }

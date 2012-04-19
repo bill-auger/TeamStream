@@ -32,6 +32,10 @@
 
 #include "resource.h"
 
+
+bool ioBtnToggle = true ; // for show/hide input/output mixer sections
+
+
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
@@ -211,6 +215,34 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           }
         break;
 
+#if TODO
+		case IDC_IOBTN:
+		{
+			SetDlgItemText(hwndDlg , IDC_IOBTN , (ioBtnToggle = !ioBtnToggle)? "Input" : "Output");
+//ShowWindow(GetDlgItem(hwndDlg, i), !ioBtnToggle * 5);
+
+			// hide IDC_INPUT, IDC_NAME, IDC_VOL, IDC_VOLLBL
+			for (int i = 1; i <= 3; i++)
+				ShowWindow(GetDlgItem(hwndDlg, i), ioBtnToggle * 5);// MAKEINTRESOURCE(i)
+			// show IDC_OUTPUT, IDC_AUDIOIN, IDC_PAN, IDC_PANLBL,
+			//      IDC_PANLLBL, IDC_PANRLBL, IDC_FX, IDC_FXCFG
+			for (int i = 6; i <= 12; i++)
+				ShowWindow(GetDlgItem(hwndDlg, i), !ioBtnToggle * 5);
+
+			// dis EnableWindow(GetDlgItem(hwndDlg,IDC_AUDIOIN),0);
+			//ShowWindow(GetDlgItem(hwndDlg,IDC_FXCFG),1);
+/* may not need
+			EnableWindow(GetDlgItem(hwndDlg,IDC_AUDIOIN),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_PAN),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_PANLBL),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_PANLLBL),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_PANRLBL),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_FX),1);
+			EnableWindow(GetDlgItem(hwndDlg,IDC_OUTPUT),1);
+*/			
+		  }
+        break;
+#endif TEAMSTREAM
       }
     return 0;
     case WM_HSCROLL:
@@ -320,30 +352,11 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         while (hwnd)
         {
-          if (hwnd != GetDlgItem(hwndDlg,IDC_ADDCH)) SendMessage(hwnd,uMsg,0,0);
+					SendMessage(hwnd , uMsg , 0 , 0) ;
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
       }
     break;
-    case WM_COMMAND:
-      if (LOWORD(wParam) != IDC_ADDCH) return 0;
-      {
-        int idx;
-        g_client_mutex.Enter();
-        int maxc=g_client->GetMaxLocalChannels();
-        for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
-
-        if (idx < maxc) 
-        {
-          g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
-          g_client->NotifyServerOfChannelChange();  
-        }
-        g_client_mutex.Leave();
-
-        if (idx >= maxc) return 0;
-        wParam = (WPARAM)idx;
-      }
-
     case WM_LCUSER_ADDCHILD:
       {
         // add a new child, with wParam as the index
@@ -358,11 +371,6 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
           int h=sz.bottom*m_num_children;
           int w=sz.right-sz.left;
-
-          SetWindowPos(GetDlgItem(hwndDlg,IDC_ADDCH),NULL,0,h,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-
-          GetWindowRect(GetDlgItem(hwndDlg,IDC_ADDCH),&sz);
-          h += sz.bottom - sz.top + 3;
 
           SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
           SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,uMsg == WM_COMMAND);
@@ -397,8 +405,8 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             tr.top -= cr.bottom-cr.top;
             tr.bottom -= cr.bottom-cr.top;
             SetWindowPos(hwnd,NULL,tr.left,tr.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-            if (tr.bottom > h) h=tr.bottom;
           }
+					if (tr.bottom > h) h=tr.bottom;
           if (tr.right > w) w=tr.right;
 
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
