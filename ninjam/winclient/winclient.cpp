@@ -240,9 +240,9 @@ void dbgListbox()
 		char aName[255] ; SendMessage(m_links_listbox , (UINT)LB_GETTEXT , (WPARAM)i ,
 			reinterpret_cast<LPARAM>((LPCTSTR)aName)) ;
 		char* aFullName = (char*)SendMessage(m_links_listbox , (UINT)LB_GETITEMDATA , (WPARAM)i , 0) ;
-		char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(names , name) ; }
-	g_client->DBG("names" , names) ;
+char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(names , name) ;
 	}
+TeamStream::DBG("names" , names) ;
 }
 
 void resetLinksListbox() { SendMessage(m_links_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
@@ -341,6 +341,10 @@ void setTeamStreamModeGUI(int userId , bool isEnable)
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
+#if 1 TEAMSTREAM_LISTVIEW
+		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKSLISTVIEW) , showHide) ;			
+		ShowWindow(GetDlgItem(g_hwnd , IDC_INTERVALPOS) , !showHide) ;
+#endif TEAMSTREAM_LISTVIEW
 	}
 	else
 	{
@@ -1865,9 +1869,9 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 //dbgListbox() ;
 
 					int listIdx = SendMessage(m_links_listbox , LB_GETCURSEL , 0 , 0) ; if (listIdx == LB_ERR) break ; // is this possible?
-					char username[255] ; getLinkIdxColumnText(m_curr_btn_idx , username , 255) ;
-					g_client->SetLink(getLinkIdxByBtnIdx(m_curr_btn_idx) , username , true) ;
-					g_client->SendLinksChatMsg(false , NULL) ;
+					char username[255] ; getLinksListViewColumnText(m_curr_btn_idx , username , 255) ;
+					TeamStream::SetLink(TeamStream::GetUserIdByName(username) , username , getLinkIdxByBtnIdx(m_curr_btn_idx) , true) ;
+					TeamStream::SendLinksChatMsg(false , NULL) ;
 				}
         break ;
 #endif TEAMSTREAM_GUI_LISTVIEW

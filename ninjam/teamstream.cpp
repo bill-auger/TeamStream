@@ -174,7 +174,7 @@ void TeamStream::RemoveUser(char* fullUserName)
 	m_teamstream_users.Delete(n) ;
 
 #if TEAMSTREAM_GUI_LISTVIEW
-	Remove_User_From_Links_Listbox(un) ;
+	Remove_User_From_Links_Listbox(TrimUsername(fullUserName)) ;
 #endif TEAMSTREAM_GUI_LISTVIEW
 }
 

@@ -30,7 +30,7 @@
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
-#define TEAMSTREAM_GUI_LISTVIEW 0 // optional // buggy
+#define TEAMSTREAM_GUI_LISTVIEW 1 // optional // buggy
 #define COLOR_CHAT 1 // optional
 #define IS_CHAT_LINKS 1
 #endif TEAMSTREAM

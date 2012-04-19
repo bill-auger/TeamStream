@@ -636,7 +636,7 @@ void NJClient::Disconnect()
 #if TEAMSTREAM
 	TeamStream::ResetTeamStreamState() ;
 #if TEAMSTREAM_GUI_LISTVIEW	
-	Reset_Links_Listbox() ;
+	TeamStream::Reset_Links_Listbox() ;
 #endif TEAMSTREAM_GUI_LISTVIEW
 #endif TEAMSTREAM
 }
