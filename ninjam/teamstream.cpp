@@ -136,7 +136,7 @@ int TeamStream::GetNRemoteUsers() { return m_teamstream_users.GetSize() - N_STAT
 void TeamStream::AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName)
 {
 	m_teamstream_users.Add(new TeamStreamUser(username , USERID_LOCAL , chatColorIdx , fullUserName)) ;
-	SetTeamStreamMode(USERID_LOCAL , isEnable) ;
+	SetTeamStreamMode(USERID_LOCAL , isEnable) ; Add_User_To_Links_Listbox(username) ;
 }
 
 int TeamStream::AddUser(char* username , char* fullUserName)
@@ -173,9 +173,9 @@ void TeamStream::RemoveUser(char* fullUserName)
 	
 	m_teamstream_users.Delete(n) ;
 
-#if TEAMSTREAM_GUI_LISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
 	Remove_User_From_Links_Listbox(TrimUsername(fullUserName)) ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 }
 
 bool TeamStream::IsTeamStreamUsernameCollision(char* username)
@@ -297,9 +297,9 @@ void TeamStream::SetChatColorIdx(int userId , int chatColorIdx)
 
 /* chat messages */
 
-void TeamStream::SendChatMsg(char* chatMsg) { Send_Chat_Message(chatMsg) ; }
+void TeamStream::SendChatMsg(char* chatMsg) { Send_Chat_Msg(chatMsg) ; }
 
-void TeamStream::SendChatPvtMsg(char* chatMsg , char* destFullUserName) { Send_Chat_Pvt_Message(destFullUserName , chatMsg) ; }
+void TeamStream::SendChatPvtMsg(char* chatMsg , char* destFullUserName) { Send_Chat_Pvt_Msg(destFullUserName , chatMsg) ; }
 
 void TeamStream::SendTeamStreamChatMsg(bool isPrivate , char* destFullUserName)
 {
@@ -332,15 +332,15 @@ void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
 
 void (*TeamStream::Set_TeamStream_Mode_GUI)(int userId , bool isEnable) = NULL ;
 void (*TeamStream::Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) = NULL ;
-#if TEAMSTREAM_GUI_LISTVIEW
-void (*TeamStream::Add_User_To_Links_Listbox)(char* fullUserName) = NULL ;
+#if TEAMSTREAM_W32_LISTVIEW
+void (*TeamStream::Add_User_To_Links_Listbox)(char* username) = NULL ;
 void (*TeamStream::Remove_User_From_Links_Listbox)(char* username) = NULL ;
 void (*TeamStream::Reset_Links_Listbox)() = NULL ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 void (*TeamStream::Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) = NULL ;
 COLORREF (*TeamStream::Get_Chat_Color)(int idx) = NULL ;
-void (*TeamStream::Send_Chat_Message)(char* chatMsg) = NULL ;
-void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) = NULL ;
+void (*TeamStream::Send_Chat_Msg)(char* chatMsg) = NULL ;
+void (*TeamStream::Send_Chat_Pvt_Msg)(char* destFullUserName , char* chatMsg) = NULL ;
 void (*TeamStream::Clear_Chat)() = NULL ;
 
 

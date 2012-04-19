@@ -73,9 +73,11 @@ static int g_last_wndpos_state;
 #if TEAMSTREAM
 static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
-#if TEAMSTREAM_GUI_LISTVIEW
-static HWND m_links_listview ; static HWND m_links_listbox ; static int m_curr_btn_idx ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+static HWND m_linkup_btn , m_teamstream_lbl , m_linkdn_btn ;
+#if TEAMSTREAM_W32_LISTVIEW
+static HWND m_interval_progress , m_links_listview , m_users_list , m_users_listbox ;
+static int m_curr_btn_idx ;
+#endif TEAMSTREAM_W32_LISTVIEW
 
 
 // chat colors
@@ -168,7 +170,7 @@ void setTeamStreamMenuItems()
 	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ;
 }
 
-#if TEAMSTREAM_GUI_LISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
 // GUI listView functions
 int getLinkIdxByBtnIdx(int btnIdx)
 {
@@ -233,50 +235,50 @@ LVM_SETCOLUMNORDERARRAY
 void dbgListbox()
 {
 	// trying to add/remove items to a listbox via chat msg would usually crash
-	int i ; int nItems = SendMessage(m_links_listbox , (UINT)LB_GETCOUNT , 0 , 0) ;
+	int i ; int nItems = SendMessage(m_users_listbox , (UINT)LB_GETCOUNT , 0 , 0) ;
 	char names[1024] ; sprintf(names , "%d items=" , nItems) ;
 	for (i = 0 ; i < nItems ; ++i)
 	{
-		char aName[255] ; SendMessage(m_links_listbox , (UINT)LB_GETTEXT , (WPARAM)i ,
+		char aName[255] ; SendMessage(m_users_listbox , (UINT)LB_GETTEXT , (WPARAM)i ,
 			reinterpret_cast<LPARAM>((LPCTSTR)aName)) ;
-		char* aFullName = (char*)SendMessage(m_links_listbox , (UINT)LB_GETITEMDATA , (WPARAM)i , 0) ;
+		char* aFullName = (char*)SendMessage(m_users_listbox , (UINT)LB_GETITEMDATA , (WPARAM)i , 0) ;
 char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(names , name) ;
 	}
 TeamStream::DBG("names" , names) ;
 }
 
-void resetLinksListbox() { SendMessage(m_links_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
+void resetLinksListbox() { SendMessage(m_users_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
 
 void setLinkListbox(bool isResizeOnly , bool isHidden)
 {
 	int linkIdx = getLinkIdxByBtnIdx(m_curr_btn_idx) ; if (linkIdx == N_LINKS) return ;
 
 	RECT lvRect ; GetWindowRect(m_links_listview , &lvRect) ; POINT* lvPos = new POINT ;
-	lvPos->x = lvRect.left ; lvPos->y = lvRect.bottom ; ScreenToClient(g_hwnd , lvPos) ;
-	int w = (lvRect.right - lvRect.left) / N_LINKS ; int h = (g_client->GetNumUsers() + 1) * 120 ;
-	int x = lvPos->x + (linkIdx * w) ; int y = lvPos->y ;
-	UINT flags = (isResizeOnly)? (SWP_NOACTIVATE | SWP_NOMOVE) :
-							((isHidden)? (SWP_NOACTIVATE | SWP_HIDEWINDOW) : SWP_SHOWWINDOW) ;
-	// oddly HWND_TOPMOST places combo visibly topmost but clicks fall through to underlying controls
-	// HWND_TOP places combo visibly beneath other controls but all items ARE clickable
+	lvPos->x = lvRect.left ; lvPos->y = lvRect.top ; ScreenToClient(g_hwnd , lvPos) ;
+	int w = (lvRect.right - lvRect.left) / N_LINKS ; int h = (TeamStream::GetNRemoteUsers() + 1) * 13 ;
 
-	SetWindowPos(m_links_listbox , HWND_TOP , x , y - 4 , w + 1 , h , flags) ;
+// NOTE (w == column width) only if coluumns fill entire width (they do not yet)
+h = (4 * 13) + 6 ; // <- positioning needs some tlc
 
-//BringWindowToTop(m_link_listbox) ; // SetForegroundWindow()
-//ShowWindow(m_link_listbox , SW_SHOW) ;
+	int x = lvPos->x + (linkIdx * w) + 4 ; int y = lvPos->y + 26 - (h / 2) ;
+	if (ShowWindow(m_users_list , SW_SHOW)) ShowWindow(m_users_list , SW_HIDE) ;
+	SetWindowPos(m_users_listbox , NULL , 0 , 0 , w , h , NULL) ; // listbox has the border
+	SetWindowPos(m_users_list , NULL , x , y , w , h , NULL) ;
 }
 
 void addUserToLinksListbox(char* username) // may not need
 {
-/* trying to add/remove items to a listbox via chat msg would usually crash
-//if (!m_links_listbox) g_client->DBG("","!m_links_listbox") ; else  // this didnt help
-g_client_mutex.Enter() ; // this didnt help
+// trying to add/remove items to a listbox via chat msg would usually crash
+if (!m_users_listbox) TeamStream::CHAT("!m_links_listbox") ; else
 try { // this didnt help
-	ListBox_AddString(m_links_listbox , (LPCSTR)username) ; // 	SendMessage(m_links_listbox , (UINT)LB_ADDSTRING , 0 , (LPARAM)username) ;
-} catch (int param) { "int exception"; } catch (char param) { "char exception"; } catch (...) { "default exception"; } g_client_mutex.Leave();
+
+for (int i = 0 ; i < 8 ; i++)
+	ListBox_AddString(m_users_listbox , (LPCSTR)username) ; // 	SendMessage(m_links_listbox , (UINT)LB_ADDSTRING , 0 , (LPARAM)username) ;
+
+} catch (...) { "default exception" ; }
 //dbgListbox() ;
-*/
 }
+
 void removeUserFromLinksListbox(char* username) // may not need
 {
 /* trying to add/remove items to a listbox via chat msg would usually crash
@@ -288,7 +290,34 @@ void removeUserFromLinksListbox(char* username) // may not need
 dbgListbox(listIdx , username , "removed") ;
 */
 }
-#endif TEAMSTREAM_GUI_LISTVIEW
+
+BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam)
+{
+	switch (uMsg)
+	{
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam))
+				case IDC_USERSLISTBOX:
+				{
+					if (HIWORD(wParam) != LBN_SELCHANGE) break ;
+
+					ShowWindow(hwndDlg , SW_HIDE) ;
+					int listIdx = SendMessage(m_users_listbox , LB_GETCURSEL , 0 , 0) ; if (listIdx == LB_ERR) break ; // is this possible?
+
+					char username[MAX_USERNAME_LEN + 1] ; SendMessage(m_users_listbox , (UINT)LB_GETTEXT , (WPARAM)listIdx ,
+						reinterpret_cast<LPARAM>((LPCTSTR)username)) ;
+					TeamStream::SetLink(TeamStream::GetUserIdByName(username) , username , getLinkIdxByBtnIdx(m_curr_btn_idx) , true) ;
+					TeamStream::SendLinksChatMsg(false , NULL) ;
+				}
+        break ;
+		}
+		break ;
+	}
+
+	return 0 ;
+}
+#endif TEAMSTREAM_W32_LISTVIEW
 
 
 /* chat functions */
@@ -338,13 +367,13 @@ void setTeamStreamModeGUI(int userId , bool isEnable)
 	if (userId == USERID_LOCAL)
 	{
 		setTeamStreamMenuItems() ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
-#if 1 TEAMSTREAM_LISTVIEW
-		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKSLISTVIEW) , showHide) ;			
-		ShowWindow(GetDlgItem(g_hwnd , IDC_INTERVALPOS) , !showHide) ;
-#endif TEAMSTREAM_LISTVIEW
+		ShowWindow(m_linkup_btn ,				showHide) ;
+		ShowWindow(m_teamstream_lbl ,		showHide) ;
+		ShowWindow(m_linkdn_btn ,				showHide) ;
+#if TEAMSTREAM_W32_LISTVIEW
+		ShowWindow(m_links_listview ,			showHide) ;
+		ShowWindow(m_interval_progress ,	!showHide) ;
+#endif TEAMSTREAM_W32_LISTVIEW
 	}
 	else
 	{
@@ -364,10 +393,10 @@ void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
 	else if (userId > USERID_LOCAL)
 		SetDlgItemText(TeamStream::GetUserGUIHandleWin32(userId) , IDC_LINKLBL , linkPosText) ;
 
-#if TEAMSTREAM_GUI_LISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
 	if (prevLinkIdx != N_LINKS) setLinksListViewColumnText(prevLinkIdx , "Nobody") ;
 	setLinksListViewColumnText(linkIdx , username) ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 }
 
 
@@ -1031,11 +1060,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				float chatRatio = 1.0f ; float chanRatio = 0.3f ;
 				//																left				top					right			bottom     
 				// divs
-        resize.init_item(IDC_DIV1 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
+//        resize.init_item(IDC_DIV1 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
 				resize.init_item(IDC_DIV2 ,					0.0 ,			chanRatio ,		chatRatio ,	chanRatio) ;
-				resize.init_item(IDC_DIV3 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
+//				resize.init_item(IDC_DIV3 ,					0.0 ,			0.0 ,				1.0f ,			0.0) ; // unused
 				resize.init_item(IDC_DIV4 ,					chatRatio ,	0.0 ,				chatRatio ,	0.0) ;
-				// master (top left)
+				// master (top left pane)
 				resize.init_item(IDC_MASTERGRP ,			0.0f ,			0.0f ,				chatRatio,	0.0f) ;
 				resize.init_item(IDC_MASTERMUTE ,		0.0f ,			0.0f ,				0.0f,			0.0f) ;
 				resize.init_item(IDC_MASTERVOLLBL ,	0.0f ,			0.0f ,				0.0f,			0.0f) ;
@@ -1044,7 +1073,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				resize.init_item(IDC_MASTERPAN ,		1.0f ,			0.0f ,				1.0f ,			0.0) ;
 				resize.init_item(IDC_MASTERVU ,			0.0f ,			0.0f ,				1.0f ,			0.0) ;
 				resize.init_item(IDC_MASTERVULBL ,		0.8f ,			0.0 ,				1.0f ,			0.0) ;
-				// metro (top right)
+				// metro (top right pane)
 				resize.init_item(IDC_METROGRP ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
 				resize.init_item(IDC_METROMUTE ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
 				resize.init_item(IDC_METROVOLLBL ,		chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
@@ -1053,28 +1082,28 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				resize.init_item(IDC_METROPAN ,			chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
 				resize.init_item(IDC_BPILBL ,				chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
 				resize.init_item(IDC_BPMLBL ,				chatRatio ,	0.0f ,				1.0f ,			0.0f) ;
-				// locals (bottom left upper)
+				// locals (bottom left upper pane)
 				resize.init_item(IDC_LOCGRP ,				0.0f ,			0.0f ,				chatRatio ,	chanRatio) ;
 					/* IDC_LINKLBL IDC_LINKUP IDC_LINKDN */
 				resize.init_item(IDC_ADDCH ,				chatRatio ,	0.0f ,			chatRatio ,	0.0f) ;
 				resize.init_item(IDC_LOCRECT ,				0.0f ,			0.0f ,			chatRatio ,	chanRatio) ;
-				// remotes (bottom left lower)
+				// remotes (bottom left lower pane)
 				resize.init_item(IDC_REMOTERECT ,		0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
 				resize.init_item(IDC_REMGRP ,				0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
-				// chat (bottom right)
+				// chat (bottom right pane)
 				resize.init_item(IDC_CHATGRP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_CHATDISP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_CHATENT ,			chatRatio ,	1.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_COLORTOGGLE ,	1.0f ,			1.0f ,			1.0f,			1.0f) ;
-				// status        
+				// status (fixed full width)
         resize.init_item(IDC_INTERVALPOS ,		0.0f ,			1.0f ,			1.0f ,			1.0f) ;
         resize.init_item(IDC_STATUS ,				0.0f ,			1.0f ,			0.0f ,			1.0f) ;
         resize.init_item(IDC_STATUS2 ,			1.0f ,			1.0f ,			1.0f ,			1.0f) ;
-#if TEAMSTREAM_GUI_LISTVIEW
-// teamstream
-//IDC_LINKSLISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
+				// teamstream (fixed full width)
+				resize.init_item(IDC_LINKSLISTVIEW ,	0.0f ,			1.0f ,			1.0f ,			1.0f) ;
 //IDC_LINKLISTBOX
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 
         chatInit(hwndDlg);
 
@@ -1126,7 +1155,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
 #if TEAMSTREAM
 				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
+
 				m_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; m_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
+
 				m_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
 				m_color_picker = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_COLORPICKER) , hwndDlg , ColorPickerProc) ;
 				m_color_btn_hwnds[0] = GetDlgItem(m_color_picker , IDC_COLORDKWHITE) ;
@@ -1147,10 +1178,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				m_color_btn_hwnds[15] = GetDlgItem(m_color_picker , IDC_COLORDKBLUE) ;
 				m_color_btn_hwnds[16] = GetDlgItem(m_color_picker , IDC_COLORDKPURPLE) ;
 				m_color_btn_hwnds[17] = GetDlgItem(m_color_picker , IDC_COLORLTBLACK) ;
-#if TEAMSTREAM_GUI_LISTVIEW
+
+				m_linkup_btn = GetDlgItem(g_hwnd , IDC_LINKUP) ;
+				m_teamstream_lbl = GetDlgItem(g_hwnd , IDC_LINKLBL) ;
+				m_linkdn_btn = GetDlgItem(g_hwnd , IDC_LINKDN) ;
+#if TEAMSTREAM_W32_LISTVIEW
 				m_links_listview = GetDlgItem(hwndDlg , IDC_LINKSLISTVIEW) ; initLinksListViewColumns() ;
-				m_links_listbox = GetDlgItem(hwndDlg , IDC_LINKLISTBOX) ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+				m_users_list = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_USERSLIST) , hwndDlg , UsersListProc) ;
+				m_users_listbox = GetDlgItem(m_users_list , IDC_USERSLISTBOX) ;
+				m_interval_progress = GetDlgItem(g_hwnd , IDC_INTERVALPOS) ;
+#endif TEAMSTREAM_W32_LISTVIEW
 #endif TEAMSTREAM
 
         // initialize local channels from config
@@ -1859,50 +1896,56 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					if (TeamStream::ShiftRemoteLinkIdx(USERID_LOCAL , (LOWORD(wParam) == IDC_LINKUP)))
 						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
         break ;
-#if TEAMSTREAM_GUI_LISTVIEW
-				case IDC_LINKLISTBOX:
-				{
-					if (HIWORD(wParam) != LBN_SELCHANGE) break ;
-
-SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
-//ShowWindow(m_link_listbox , SW_HIDE) ;
-//dbgListbox() ;
-
-					int listIdx = SendMessage(m_links_listbox , LB_GETCURSEL , 0 , 0) ; if (listIdx == LB_ERR) break ; // is this possible?
-					char username[255] ; getLinksListViewColumnText(m_curr_btn_idx , username , 255) ;
-					TeamStream::SetLink(TeamStream::GetUserIdByName(username) , username , getLinkIdxByBtnIdx(m_curr_btn_idx) , true) ;
-					TeamStream::SendLinksChatMsg(false , NULL) ;
-				}
-        break ;
-#endif TEAMSTREAM_GUI_LISTVIEW
 #endif TEAMSTREAM
 			}
 		break;
 
 #if TEAMSTREAM
-#if CLICKABLE_URLS_IN_CHAT
 		case WM_NOTIFY:
 		{
-			LPNMHDR hdr = (LPNMHDR)lParam ;
-			if (hdr->code == EN_LINK)
+			switch (LOWORD(wParam))
 			{
-				// chat url link clicked
-				ENLINK* enlink = (ENLINK*)hdr ;
-				if (enlink->msg == WM_LBUTTONDOWN)
-				{
-					CHARRANGE charRange = enlink->chrg ; LONG cpMin , cpMax ; char url[256] ;
-					SendMessage(m_chat_display , EM_GETSEL , (WPARAM)&cpMin , (LPARAM)&cpMax) ;
-					if (cpMax - cpMin > 255) break ;
+#if TEAMSTREAM_W32_LISTVIEW
+// TODO: LVN_COLUMNCLICK works but there is no LVN_COLUMNSREORDERED
+//	- may need to custom subclass the listView for this
+				// link assignment and ordering (see also remchn.cpp RemoteUserItemProc())
+				case IDC_LINKSLISTVIEW:
+					if (((LPNMHDR)lParam)->code != LVN_COLUMNCLICK || // FFFFFF94
+					g_client->GetStatus() != g_client->NJC_STATUS_OK) break ;
 
-					SendMessage(m_chat_display , EM_SETSEL , (WPARAM)charRange.cpMin , (LPARAM)charRange.cpMax) ;
-					SendMessage(m_chat_display , EM_GETSELTEXT , 0 , (LPARAM)&url) ;
-					SendMessage(m_chat_display , EM_SETSEL , (WPARAM)&cpMin , (LPARAM)&cpMax) ;
-					ShellExecute(NULL , "open" , url , NULL , NULL , SW_SHOWNORMAL) ;
+					m_curr_btn_idx = ((LPNMLISTVIEW)lParam)->iSubItem ; setLinkListbox(false , false) ;
+/*
+RECT listboxRect ; GetClientRect(m_link_listbox , &listboxRect) ;
+InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_SHOW) ;
+*/
+				break ;
+#endif TEAMSTREAM_W32_LISTVIEW
+
+#if CLICKABLE_URLS_IN_CHAT
+				case IDC_CHATDISP:
+				{
+					LPNMHDR hdr = (LPNMHDR)lParam ;
+					if (hdr->code == EN_LINK)
+					{
+						// chat url link clicked
+						ENLINK* enlink = (ENLINK*)hdr ;
+						if (enlink->msg == WM_LBUTTONDOWN)
+						{
+							CHARRANGE charRange = enlink->chrg ; LONG cpMin , cpMax ; char url[256] ;
+							SendMessage(m_chat_display , EM_GETSEL , (WPARAM)&cpMin , (LPARAM)&cpMax) ;
+							if (cpMax - cpMin > 255) break ;
+
+							SendMessage(m_chat_display , EM_SETSEL , (WPARAM)charRange.cpMin , (LPARAM)charRange.cpMax) ;
+							SendMessage(m_chat_display , EM_GETSELTEXT , 0 , (LPARAM)&url) ;
+							SendMessage(m_chat_display , EM_SETSEL , (WPARAM)&cpMin , (LPARAM)&cpMax) ;
+							ShellExecute(NULL , "open" , url , NULL , NULL , SW_SHOWNORMAL) ;
+						}
+					}
 				}
+#endif CLICKABLE_URLS_IN_CHAT
 			}
 		}
 		break ;
-#endif CLICKABLE_URLS_IN_CHAT
 
 		case WM_SETCURSOR:
 			if(LOWORD(lParam) == HTCLIENT)
@@ -2116,15 +2159,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	// GUI delegates
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Set_Link_GUI = setLinkGUI ;
-#if TEAMSTREAM_GUI_LISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
 	TeamStream::Add_User_To_Links_Listbox = addUserToLinksListbox ;
 	TeamStream::Remove_User_From_Links_Listbox = removeUserFromLinksListbox ;
 	TeamStream::Reset_Links_Listbox = resetLinksListbox ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Get_Chat_Color = getChatColor ;
-	TeamStream::Send_Chat_Message = SendChatMessage ;
-	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ;
+	TeamStream::Send_Chat_Msg = SendChatMessage ;
+	TeamStream::Send_Chat_Pvt_Msg = SendChatPvtMessage ;
 	TeamStream::Clear_Chat = clearChat ;
 #endif TEAMSTREAM
 

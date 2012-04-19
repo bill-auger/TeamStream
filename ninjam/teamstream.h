@@ -30,7 +30,7 @@
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
-#define TEAMSTREAM_GUI_LISTVIEW 1 // optional // buggy
+#define TEAMSTREAM_W32_LISTVIEW 1 // optional // buggy
 #define COLOR_CHAT 1 // optional
 #define IS_CHAT_LINKS 1
 #endif TEAMSTREAM
@@ -61,6 +61,7 @@
 #define N_STATIC_USERS 4
 #define N_PHANTOM_USERS 3
 #define USERID_LOCAL -1										// real local TeamStream user
+#define MAX_USERNAME_LEN 255
 #define USERID_SERVER -2									// phantom 'Server' chat user
 #define USERNAME_SERVER "Server"
 #define USERID_TEAMSTREAM -3							// phantom 'TeamStream' chat user
@@ -170,7 +171,7 @@ class TeamStream
 		~TeamStream(void);
 // dbg
 static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK) ; }
-//void CHAT(char* msg) { SendChatPvtMsg(msg , g_client->GetUserName()) ; }
+static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_full_name , msg) ; }
 
 		// helpers
 		static char* TrimUsername(char* username) ;
@@ -229,15 +230,15 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 		// GUI delegates
 		static void (*Set_TeamStream_Mode_GUI)(int userId , bool isEnable) ;
 		static void (*Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) ;
-#if TEAMSTREAM_GUI_LISTVIEW
+#if TEAMSTREAM_W32_LISTVIEW
 		static void (*Add_User_To_Links_Listbox)(char* fullUserName) ;
 		static void (*Remove_User_From_Links_Listbox)(char* username) ;
 		static void (*Reset_Links_Listbox)() ;
-#endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM_W32_LISTVIEW
 		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
 		static COLORREF (*Get_Chat_Color)(int idx) ;
-		static void (*Send_Chat_Message)(char* chatMsg) ;
-		static void (*Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) ;
+		static void (*Send_Chat_Msg)(char* chatMsg) ;
+		static void (*Send_Chat_Pvt_Msg)(char* destFullUserName , char* chatMsg) ;
 		static void (*Clear_Chat)() ;
 
 	private:

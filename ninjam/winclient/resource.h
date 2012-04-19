@@ -144,12 +144,13 @@
 #define IDC_COLORDKPURPLE												2018
 #define IDC_COLORLTBLACK												2019
 
-// TeamStream link buttons
+// TeamStream links
 #define IDC_LINKLBL															3000
 #define IDC_LINKUP															3001
 #define IDC_LINKDN															3002
 #define IDC_LINKSLISTVIEW												3003
-#define IDC_LINKLISTBOX													3004
+#define IDD_USERSLIST														3004
+#define IDC_USERSLISTBOX												3005
 
 // license checkboxes
 #define IDC_AGREE																4000
