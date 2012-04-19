@@ -231,9 +231,9 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void (*Set_TeamStream_Mode_GUI)(int userId , bool isEnable) ;
 		static void (*Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 #if TEAMSTREAM_W32_LISTVIEW
-		static void (*Add_User_To_Links_Listbox)(char* fullUserName) ;
-		static void (*Remove_User_From_Links_Listbox)(char* username) ;
-		static void (*Reset_Links_Listbox)() ;
+		static void (*Add_To_Users_Listbox)(char* fullUserName) ;
+		static void (*Remove_From_Users_Listbox)(char* username) ;
+		static void (*Reset_Users_Listbox)() ;
 #endif TEAMSTREAM_W32_LISTVIEW
 		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
 		static COLORREF (*Get_Chat_Color)(int idx) ;

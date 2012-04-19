@@ -247,9 +247,9 @@ char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(n
 TeamStream::DBG("names" , names) ;
 }
 
-void resetLinksListbox() { SendMessage(m_users_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
+void resetUsersListbox() { SendMessage(m_users_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
 
-void setLinkListbox(bool isResizeOnly , bool isHidden)
+void setUsersListbox()
 {
 	int linkIdx = getLinkIdxByBtnIdx(m_curr_btn_idx) ; if (linkIdx == N_LINKS) return ;
 
@@ -266,7 +266,7 @@ h = (4 * 13) + 6 ; // <- positioning needs some tlc
 	SetWindowPos(m_users_list , NULL , x , y , w , h , NULL) ;
 }
 
-void addUserToLinksListbox(char* username) // may not need
+void addToUsersListbox(char* username) // may not need
 {
 // trying to add/remove items to a listbox via chat msg would usually crash
 if (!m_users_listbox) TeamStream::CHAT("!m_links_listbox") ; else
@@ -279,7 +279,7 @@ for (int i = 0 ; i < 8 ; i++)
 //dbgListbox() ;
 }
 
-void removeUserFromLinksListbox(char* username) // may not need
+void removeFromUsersListbox(char* username) // may not need
 {
 /* trying to add/remove items to a listbox via chat msg would usually crash
 	int listIdx = SendMessage(m_links_listbox , LB_FINDSTRINGEXACT , -1 ,
@@ -1913,7 +1913,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					if (((LPNMHDR)lParam)->code != LVN_COLUMNCLICK || // FFFFFF94
 					g_client->GetStatus() != g_client->NJC_STATUS_OK) break ;
 
-					m_curr_btn_idx = ((LPNMLISTVIEW)lParam)->iSubItem ; setLinkListbox(false , false) ;
+					m_curr_btn_idx = ((LPNMLISTVIEW)lParam)->iSubItem ; setUsersListbox() ;
 /*
 RECT listboxRect ; GetClientRect(m_link_listbox , &listboxRect) ;
 InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_SHOW) ;
@@ -2160,9 +2160,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Set_Link_GUI = setLinkGUI ;
 #if TEAMSTREAM_W32_LISTVIEW
-	TeamStream::Add_User_To_Links_Listbox = addUserToLinksListbox ;
-	TeamStream::Remove_User_From_Links_Listbox = removeUserFromLinksListbox ;
-	TeamStream::Reset_Links_Listbox = resetLinksListbox ;
+	TeamStream::Add_To_Users_Listbox = addToUsersListbox ;
+	TeamStream::Remove_From_Users_Listbox = removeFromUsersListbox ;
+	TeamStream::Reset_Users_Listbox = resetUsersListbox ;
 #endif TEAMSTREAM_W32_LISTVIEW
 	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Get_Chat_Color = getChatColor ;

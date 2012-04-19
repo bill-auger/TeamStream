@@ -136,7 +136,7 @@ int TeamStream::GetNRemoteUsers() { return m_teamstream_users.GetSize() - N_STAT
 void TeamStream::AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName)
 {
 	m_teamstream_users.Add(new TeamStreamUser(username , USERID_LOCAL , chatColorIdx , fullUserName)) ;
-	SetTeamStreamMode(USERID_LOCAL , isEnable) ; Add_User_To_Links_Listbox(username) ;
+	SetTeamStreamMode(USERID_LOCAL , isEnable) ; Add_To_Users_Listbox(username) ;
 }
 
 int TeamStream::AddUser(char* username , char* fullUserName)
@@ -174,7 +174,7 @@ void TeamStream::RemoveUser(char* fullUserName)
 	m_teamstream_users.Delete(n) ;
 
 #if TEAMSTREAM_W32_LISTVIEW
-	Remove_User_From_Links_Listbox(TrimUsername(fullUserName)) ;
+	Remove_From_Users_Listbox(TrimUsername(fullUserName)) ;
 #endif TEAMSTREAM_W32_LISTVIEW
 }
 
@@ -333,9 +333,9 @@ void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
 void (*TeamStream::Set_TeamStream_Mode_GUI)(int userId , bool isEnable) = NULL ;
 void (*TeamStream::Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) = NULL ;
 #if TEAMSTREAM_W32_LISTVIEW
-void (*TeamStream::Add_User_To_Links_Listbox)(char* username) = NULL ;
-void (*TeamStream::Remove_User_From_Links_Listbox)(char* username) = NULL ;
-void (*TeamStream::Reset_Links_Listbox)() = NULL ;
+void (*TeamStream::Add_To_Users_Listbox)(char* username) = NULL ;
+void (*TeamStream::Remove_From_Users_Listbox)(char* username) = NULL ;
+void (*TeamStream::Reset_Users_Listbox)() = NULL ;
 #endif TEAMSTREAM_W32_LISTVIEW
 void (*TeamStream::Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) = NULL ;
 COLORREF (*TeamStream::Get_Chat_Color)(int idx) = NULL ;

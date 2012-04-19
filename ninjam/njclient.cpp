@@ -636,7 +636,7 @@ void NJClient::Disconnect()
 #if TEAMSTREAM
 	TeamStream::ResetTeamStreamState() ;
 #if TEAMSTREAM_W32_LISTVIEW	
-	TeamStream::Reset_Links_Listbox() ;
+	TeamStream::Reset_Users_Listbox() ;
 #endif TEAMSTREAM_W32_LISTVIEW
 #endif TEAMSTREAM
 }
