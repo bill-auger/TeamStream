@@ -106,8 +106,12 @@ class RemoteUser
 {
 public:
 
+#if TEAMSTREAM
 	RemoteUser() : muted(0) , volume(1.0f) , pan(0.0f) , submask(0) , mutedmask(0) , solomask(0) , chanpresentmask(0) ,
 		m_teamstream_id(USERID_NOBODY) { }
+#else TEAMSTREAM
+		RemoteUser() : muted(0) , volume(1.0f) , pan(0.0f) , submask(0) , mutedmask(0) , solomask(0) , chanpresentmask(0) { }
+#endif TEAMSTREAM
 
   ~RemoteUser() { }
 
@@ -121,7 +125,9 @@ public:
   int solomask;
   RemoteUser_Channel channels[MAX_USER_CHANNELS];
 
+#if TEAMSTREAM
 	int m_teamstream_id ;
+#endif TEAMSTREAM
 };
 
 
@@ -627,10 +633,12 @@ void NJClient::Disconnect()
 
   _reinit();
 
-	TeamStream::ResetLocalTeamStreamState() ;
+#if TEAMSTREAM
+	TeamStream::ResetTeamStreamState() ;
 #if TEAMSTREAM_GUI_LISTVIEW	
 	Reset_Links_Listbox() ;
 #endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM
 }
 
 void NJClient::Connect(char *host, char *user, char *pass)
@@ -811,9 +819,11 @@ int NJClient::Run() // nonzero if sleep ok
               updateBPMinfo(ccn.beats_minute,ccn.beats_interval);
               m_audio_enable=1;
 
+#if TEAMSTREAM
 							char bpiString[256] ; sprintf(bpiString , "%d bpi" , ccn.beats_interval) ;
 							char bpmString[256] ; sprintf(bpmString , "%d bpm" , ccn.beats_minute) ;
 							TeamStream::Set_Bpi_Bpm_Labels(bpiString , bpmString) ;
+#endif TEAMSTREAM
             }
           }
 
@@ -1288,7 +1298,9 @@ float NJClient::GetOutputPeak()
 
 void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
 {
+#if CHAT_MUTEX_CENTRALIZED
 	g_client_mutex.Enter() ;
+#endif CHAT_MUTEX_CENTRALIZED
   if (m_netcon)
   {
     mpb_chat_message m;
@@ -1299,7 +1311,9 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
     m.parms[4]=parm5;
     m_netcon->Send(m.build());
   }
+#if CHAT_MUTEX_CENTRALIZED
 	g_client_mutex.Leave() ;
+#endif CHAT_MUTEX_CENTRALIZED
 }
 
 void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor)
@@ -2216,5 +2230,8 @@ void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
 #endif
 }
 
+
+#if TEAMSTREAM
 int NJClient::GetUserId(int userIdx)
 	{ return (userIdx < GetNumUsers())? m_remoteusers.Get(userIdx)->m_teamstream_id : USERID_NOBODY ; }
+#endif TEAMSTREAM

@@ -70,7 +70,8 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
-static bool g_is_teamstream_init_once = false ;
+#if TEAMSTREAM
+static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
 #if TEAMSTREAM_GUI_LISTVIEW
 static HWND m_links_listview ; static HWND m_links_listbox ; static int m_curr_btn_idx ;
@@ -149,6 +150,7 @@ char* expectedResult = "0.07.teamstream http://www.google.com" ;
 	}
 }
 #endif UPDATE_CHECK_IMPLEMENTED
+
 
 /* GUI helpers */
 
@@ -398,9 +400,11 @@ void initTeamStreamUser(HWND hwndDlg , bool isEnable)
   SetDlgItemText(hwndDlg , IDC_STATUS , statusText.Get()) ;
 
 	int chatColorIdx = TeamStream::ReadTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , CHAT_COLOR_DEFAULT) ;
-	TeamStream::AddLocalUser(localUsername , chatColorIdx , fullUserName) ;
-	TeamStream::SetTeamStreamMode(USERID_LOCAL , isEnable) ; setTeamStreamMenuItems(isEnable) ;
+	char* currHost = strtok(g_client->GetHostName() , ":") ;
+	TeamStream::AddLocalUser(localUsername , chatColorIdx , isEnable , currHost , fullUserName) ;
+	setTeamStreamMenuItems(isEnable) ;
 }
+#endif TEAMSTREAM
 
 
 /* ninjam */
@@ -697,7 +701,9 @@ static void do_disconnect()
     }
   }
 
-	g_is_teamstream_init_once = false ;
+#if TEAMSTREAM
+	g_is_logged_in = false ;
+#endif TEAMSTREAM
 }
 
 
@@ -872,7 +878,7 @@ static DWORD WINAPI ThreadFunc(LPVOID p)
 
 #include "../chanmix.h"
 
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 int g_last_resize_x_pos ;
 int g_last_resize_y_pos ;
 static void resizeBottomPanesHoriz(HWND hwndDlg , int x_pos , WDL_WndSizer &resize , int doresize)
@@ -926,10 +932,10 @@ static void resizeBottomPanesHoriz(HWND hwndDlg , int x_pos , WDL_WndSizer &resi
 }
 
 static void resizeLeftPanesVert(HWND hwndDlg , int y_pos , WDL_WndSizer &resize , int doresize)
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
 int g_last_resize_pos;
 static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
 {
   // move things, specifically 
   // IDC_DIV2 : top and bottom
@@ -939,11 +945,11 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
   GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
   ScreenToClient(hwndDlg,(LPPOINT)&divr);
 
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 	g_last_resize_y_pos = y_pos ;
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
   g_last_resize_pos=y_pos;
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
 
   int dy = y_pos - divr.top;
 
@@ -1116,6 +1122,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,LocalOuterChannelListProc);
         m_remwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,RemoteOuterChannelListProc);
         
+#if TEAMSTREAM
 				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
 				m_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; m_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
 				m_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
@@ -1142,6 +1149,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				m_links_listview = GetDlgItem(hwndDlg , IDC_LINKSLISTVIEW) ; initLinksListViewColumns() ;
 				m_links_listbox = GetDlgItem(hwndDlg , IDC_LINKLISTBOX) ;
 #endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM
 
         // initialize local channels from config
         {
@@ -1259,18 +1267,20 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         SetTimer(hwndDlg,1,50,NULL);
 
         int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get()); // TODO: it is DIV2 that is referenced here
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
         if (rsp) resizeLeftPanesVert(hwndDlg , rsp , resize , 1) ;
         rsp = GetPrivateProfileInt(CONFSEC , "wnd_div4" , 0 , g_ini_file.Get()) ;
         if (rsp) resizeBottomPanesHoriz(hwndDlg , rsp , resize , 1) ;
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
         if (rsp) resizePanes(hwndDlg,rsp,resize,1);
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
 
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
 
+#if TEAMSTREAM
 				winInit() ;
+#endif TEAMSTREAM
       }
     return 0;
     case WM_TIMER:
@@ -1308,7 +1318,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               tmp.Set("Status: Connected to ");
               tmp.Append(g_client->GetHostName());
               tmp.Append(" as ");
-              tmp.Append(g_client->GetUserName());
+							tmp.Append(TeamStream::TrimUsername(g_client->GetUserName())) ;
 
               SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
             }
@@ -1393,17 +1403,19 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
           chatRun(hwndDlg);
 
-					// initialize phantom users and try to join the TeamStream session
-					if (!g_is_teamstream_init_once && ns == NJClient::NJC_STATUS_OK)
+#if TEAMSTREAM_INIT
+					// set local user init timer
+					if (!g_is_logged_in && ns == NJClient::NJC_STATUS_OK)
 					{
-						g_is_teamstream_init_once = true ;
-						bool isEnable = TeamStream::ReadTeamStreamConfigBool("teamstreamEnabled" , 1) ;
-						initTeamStreamUser(hwndDlg , isEnable) ;
+						g_is_logged_in = true ;
+						SetTimer(g_hwnd , IDT_LOCAL_USER_INIT_TIMER , LOCAL_USER_INIT_DELAY , NULL) ;
 					}
+#endif TEAMSTREAM_INIT
 
           in_t=0;
         }
       }
+#if AUTO_JOIN
 			// auto-join via command line or ninjam:// url
 			else if (wParam == IDT_AUTO_JOIN_TIMER)
 			{
@@ -1411,6 +1423,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				if (strcmp(g_connect_user.Get() , "")) do_connect() ;
 				else PostMessage(g_hwnd , WM_COMMAND , (WPARAM)ID_FILE_CONNECT , 0) ;
 			}
+#endif AUTO_JOIN
+#if TEAMSTREAM_INIT
+			// try to join the TeamStream session
+			else if (wParam == IDT_LOCAL_USER_INIT_TIMER)
+			{
+				KillTimer(hwndDlg , IDT_LOCAL_USER_INIT_TIMER) ;
+				bool isEnable = TeamStream::ReadTeamStreamConfigBool("teamstreamEnabled" , 1) ;
+				initTeamStreamUser(hwndDlg , isEnable) ;
+			}
+#endif TEAMSTREAM_INIT
 			// delay sending in case we click too fast
 			else if (wParam == IDT_LINKS_CHAT_TIMER)
 				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
@@ -1433,15 +1455,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_MOUSEMOVE:
       if (GetCapture() == hwndDlg)
       {
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
         if (cap_mode == 1) resizeLeftPanesVert(hwndDlg , GET_Y_LPARAM(lParam) - cap_spos , resize , 1) ;
         else if (cap_mode == 2) resizeBottomPanesHoriz(hwndDlg , GET_X_LPARAM(lParam) - cap_spos , resize , 1) ;
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
         if (cap_mode == 1)
         {
           resizePanes(hwndDlg,GET_Y_LPARAM(lParam)-cap_spos,resize,1);
         }
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
       }
     return 0;
     case WM_LBUTTONDOWN:
@@ -1449,7 +1471,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         POINT p={GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
         ClientToScreen(hwndDlg,&p);
 
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 				RECT horizSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV2) , &horizSplitRect) ;
 				RECT vertSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV4) , &vertSplitRect) ;
         if (p.x >= horizSplitRect.left && p.x <= horizSplitRect.right && 
@@ -1464,7 +1486,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					SetCursor(LoadCursor(NULL,IDC_SIZEWE)) ;
 					SetCapture(hwndDlg) ; cap_mode = 2 ; cap_spos = p.x - vertSplitRect.left ;
 				}
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
         if (p.x >= r.left && p.x <= r.right && 
@@ -1475,7 +1497,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           cap_mode=1;
           cap_spos=p.y - r.top;
         }
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
       }
     return 0;
 
@@ -1495,23 +1517,23 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           {
             if (new_rect.bottom - rec->last.top < m_orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
             {
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 							resizeLeftPanesVert(hwndDlg , 0 , resize , 0) ;
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
               resizePanes(hwndDlg,0,resize,0);
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
             }
             else if (rec->last.top < rec->real_orig.top) // top section is too small, fix
             {
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 							resizeLeftPanesVert(hwndDlg , new_rect.bottom , resize , 0) ;
-#else HORIZ_RESIZE_IMPLEMENTED
+#else HORIZ_RESIZE
               resizePanes(hwndDlg,new_rect.bottom,resize,0);
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
             }
           }
 
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
           rec = resize.get_item(IDC_DIV4) ;
           if (rec)
           {
@@ -1520,7 +1542,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             else if (rec->last.left < rec->real_orig.left) // left section is too small, fix
               resizeBottomPanesHoriz(hwndDlg , new_rect.right , resize , 0) ;
           }
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
         }
 
 
@@ -1657,6 +1679,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               }
               else if (g_client->GetStatus() == NJClient::NJC_STATUS_OK)
               {
+#if CHAT_MUTEX_CENTRALIZED
                 if (str[0] == '/')
                 {
                   if (!strncasecmp(str,"/me ",4)) g_client->ChatMessage_Send("MSG" , str) ;
@@ -1701,6 +1724,70 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                   }
                 }
 								else g_client->ChatMessage_Send("MSG" , str) ;
+#else CHAT_MUTEX_CENTRALIZED
+                if (str[0] == '/')
+                {
+                  if (!strncasecmp(str,"/me ",4))
+                  {
+                    g_client_mutex.Enter();
+                    g_client->ChatMessage_Send("MSG",str);
+                    g_client_mutex.Leave();
+                  }
+                  else if (!strncasecmp(str,"/topic ",7)||
+                           !strncasecmp(str,"/kick ",6) ||                        
+                           !strncasecmp(str,"/bpm ",5) ||
+                           !strncasecmp(str,"/bpi ",5)
+                    ) // alias to /admin *
+                  {
+                    g_client_mutex.Enter();
+                    g_client->ChatMessage_Send("ADMIN",str+1);
+                    g_client_mutex.Leave();
+                  }
+                  else if (!strncasecmp(str,"/admin ",7))
+                  {
+                    char *p=str+7;
+                    while (*p == ' ') p++;
+                    g_client_mutex.Enter();
+                    g_client->ChatMessage_Send("ADMIN",p);
+                    g_client_mutex.Leave();
+                  }
+                  else if (!strncasecmp(str,"/msg ",5))
+                  {
+                    char *p=str+5;
+                    while (*p == ' ') p++;
+                    char *n=p;
+                    while (*p && *p != ' ') p++;
+                    if (*p == ' ') *p++=0;
+                    while (*p == ' ') p++;
+                    if (*p)
+                    {
+                      g_client_mutex.Enter();
+                      g_client->ChatMessage_Send("PRIVMSG",n,p);
+                      g_client_mutex.Leave();
+                      WDL_String tmp;
+                      tmp.Set("-> *");
+                      tmp.Append(n);
+                      tmp.Append("* ");
+                      tmp.Append(p);
+                      chat_addline(NULL,tmp.Get());
+                    }
+                    else
+                    {
+                      chat_addline("","error: /msg requires a username and a message.");
+                    }
+                  }
+                  else
+                  {
+                    chat_addline("","error: unknown command.");
+                  }
+                }
+                else
+                {
+                  g_client_mutex.Enter();
+                  g_client->ChatMessage_Send("MSG",str);
+                  g_client_mutex.Leave();
+                }
+#endif CHAT_MUTEX_CENTRALIZED
               }
               else
               {
@@ -1712,6 +1799,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
         break;
 
+#if TEAMSTREAM
 				case IDC_ADDCH:
 				{
 					int idx;
@@ -1734,7 +1822,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 				case IDC_COLORTOGGLE:
 				{
-					setFocusChat() ; if (!TeamStream::IsLocalTeamStreamUserExist()) break ;
+// see issue #1
+//					setFocusChat() ;
+					if (!TeamStream::IsTeamStream()) break ;
 
 //					if (ShowWindow(m_color_picker , SW_SHOWNOACTIVATE))
 					if (ShowWindow(m_color_picker , SW_SHOW))
@@ -1749,11 +1839,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 				// TeamStream menu items
 				case ID_TEAMSTREAM_ON:
-					if (TeamStream::IsLocalTeamStreamUserExist()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
+					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
 					else initTeamStreamUser(hwndDlg , true) ;
 				break ;
 				case ID_TEAMSTREAM_OFF:
-					if (TeamStream::IsLocalTeamStreamUserExist()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ; break ;
+					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ; break ;
 				case ID_TEAMSTREAM_LOAD: // TODO:
 				break ;
 				case ID_TEAMSTREAM_SAVE: // TODO:
@@ -1780,9 +1870,11 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 				}
         break ;
 #endif TEAMSTREAM_GUI_LISTVIEW
+#endif TEAMSTREAM
 			}
 		break;
 
+#if TEAMSTREAM
 		case WM_NOTIFY:
 		{
 			LPNMHDR hdr = (LPNMHDR)lParam ;
@@ -1822,7 +1914,9 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 			}
 		break ;
 
+// see issue #1
 //		case WM_KILLFOCUS: setFocusChat() ; break ; //In case you care, wParam will be the handle of the window that's receiving the focus.
+#endif TEAMSTREAM
 
     case WM_CLOSE:
       if (1) DestroyWindow(hwndDlg);
@@ -1894,10 +1988,10 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
 
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 				sprintf(buf , "%d" , g_last_resize_x_pos) ;
 				WritePrivateProfileString(CONFSEC , "wnd_div4" , buf , g_ini_file.Get()) ;
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
 
         sprintf(buf,"%d",g_last_resize_pos);
         WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get()); // TODO: DIV2 is the one referenced here
@@ -2011,6 +2105,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   g_client->LicenseAgreementCallback = licensecallback;
   g_client->ChatMessage_Callback = chatmsg_cb;
 
+#if TEAMSTREAM
 	// GUI delegates
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Set_Link_GUI = setLinkGUI ;
@@ -2023,6 +2118,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	TeamStream::Get_Chat_Color = getChatColor ;
 	TeamStream::Send_Chat_Message = SendChatMessage ; // merged
 	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ; // merged
+#endif TEAMSTREAM
 
   HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
@@ -2032,10 +2128,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     return 0;
   }
 
+#if AUTO_JOIN
 	// set auto-join timer via command line or ninjam:// url
-	WDL_String host = TeamStream::ValidateHost(lpszCmdParam) ;
+	WDL_String host = TeamStream::ParseCommandLineHost(lpszCmdParam) ;
 	if (!strcmp(host.Get() , "")) MessageBox(NULL , UNKNOWN_HOST_MSG , "Unknown Host" , NULL) ;
 	else { g_connect_host.Set(host.Get()) ; SetTimer(g_hwnd , IDT_AUTO_JOIN_TIMER , AUTO_JOIN_DELAY , NULL) ; }
+#endif AUTO_JOIN
 
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))

@@ -25,9 +25,17 @@
 #define _TEAMSTREAM_H_
 
 // TODO:
-#define TEAMSTREAM_GUI_LISTVIEW 0
+#define TEAMSTREAM 1
+#if TEAMSTREAM
+#define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_AUDIO 0
-#define HORIZ_RESIZE_IMPLEMENTED 0
+#define TEAMSTREAM_COLORCHAT 1 // optional
+#define TEAMSTREAM_GUI_LISTVIEW 0 // optional
+#endif TEAMSTREAM
+#define AUTO_ACCEPT_LICENSE 1
+#define AUTO_JOIN 1
+#define CHAT_MUTEX_CENTRALIZED 1
+#define HORIZ_RESIZE 0
 
 /* TeamStream #defines */
 // NOTE: last on chain has no one to stream to and 2nd to last is not delayed so
@@ -62,6 +70,8 @@
 */
 #define USERID_NOBODY -4				// phantom 'Nobody' TeamStream user
 #define USERNAME_NOBODY "Nobody"
+#define LOCAL_USER_INIT_DELAY 1000 // for IDT_LOCAL_USER_INIT_TIMER
+
 
 /* config defines */
 #define MAX_CONFIG_STRING_LEN 2048
@@ -110,6 +120,9 @@
 #define KNOWN_HOST_NINBOT "ninbot.com"
 #define KNOWN_HOST_NINJAMER "ninjamer.com"
 
+/* aliasses */
+#define IsTeamStream GetTeamStreamState
+
 /* teamstream.cpp includes */
 #include "windows.h"
 #include <string>
@@ -155,7 +168,8 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 
 		// helpers
 		static char* TrimUsername(char* username) ;
-		static WDL_String ValidateHost(LPSTR lpszCmdParam) ;
+		static WDL_String ParseCommandLineHost(LPSTR cmdParam) ;
+		static bool ValidateHost(char* host , bool isIncludeuserDefinedHosts) ;
 
 		// config helpers
 		static bool ReadTeamStreamConfigBool(char* aKey , bool defVal) ;
@@ -165,14 +179,16 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 		static std::string ReadTeamStreamConfigString(char* aKey , char* defVal) ;
 
 		// user creation/destruction/query
+		static void InitTeamStream() ;
+		static bool GetTeamStreamState() ; // alias IsTeamStream()
+		static void SetTeamStreamState(bool isEnable , char* currHost) ;
+		static void ResetTeamStreamState() ;
 		static int GetNUsers() ;
 		static int GetNRemoteUsers() ;
-		static void InitTeamStream() ;
-		static void AddLocalUser(char* username , int chatColor , char* fullUserName) ;
+		static void AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* currHost , char* fullUserName) ;
 		static int AddUser(char* username , char* fullUserName) ;
 		static void RemoveUser(char* fullUserName) ;
 		static bool IsTeamStreamUsernameCollision(char* shortUsername) ;
-		static bool IsLocalTeamStreamUserExist() ;
 		static bool IsUserIdReal(int userId) ;
 		static TeamStreamUser* GetUserById(int userId) ;
 		static int GetUserIdByName(char* username) ;
@@ -185,7 +201,6 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 		static bool ShiftRemoteLinkIdx(int userId , bool isMoveUp) ;
 
 		// user state getters/setters
-		static void ResetLocalTeamStreamState() ;
 		static char* GetUsername(int userId) ;
 		static bool GetTeamStreamMode(int userId) ;
 		static void SetTeamStreamMode(int userId , bool isEnable) ;
@@ -221,6 +236,7 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 		static WDL_PtrList<TeamStreamUser> m_teamstream_users ; static int m_next_id ;
 		static TeamStreamUser* TeamStream::m_bogus_user ;
 		static std::string m_known_hosts[N_KNOWN_HOSTS] ;
+		static bool m_teamstream_enabled ; // master enable/disable
 } ;
 
 #endif _TEAMSTREAM_H_

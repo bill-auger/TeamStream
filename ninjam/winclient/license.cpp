@@ -88,7 +88,11 @@ void handleAgree(HWND hwndDlg , bool isChecked)
 {
 	// enable/disable IDC_AGREE_ALWAYS and IDOK
 	if (isChecked) SetDlgItemText(hwndDlg , IDC_AGREE_ALWAYS , AGREE_ALWAYS_LBL) ;
+
+#if AUTO_ACCEPT_LICENSE
 	EnableWindow(GetDlgItem(hwndDlg , IDC_AGREE_ALWAYS) , isChecked) ;
+#endif AUTO_ACCEPT_LICENSE
+
   EnableWindow(GetDlgItem(hwndDlg , IDOK) , isChecked) ;
 }
 
@@ -108,21 +112,29 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
 {
   switch (uMsg)
   {
+#if AUTO_ACCEPT_LICENSE
     case WM_INITDIALOG: initLicense(hwndDlg , (char*)lParam) ; return 0 ;
-    case WM_CLOSE: EndDialog(hwndDlg , 0) ; return 0 ;
+#endif AUTO_ACCEPT_LICENSE
+
     case WM_COMMAND:
 		{
+#if AUTO_ACCEPT_LICENSE
 			bool isChecked = (IsDlgButtonChecked(hwndDlg , LOWORD(wParam))) ;
+#endif AUTO_ACCEPT_LICENSE
+
       switch (LOWORD(wParam))
       {
-        case IDC_AGREE:						handleAgree(hwndDlg , (isChecked)) ; break;
+#if AUTO_ACCEPT_LICENSE
 				case IDC_AGREE_ALWAYS:		handleAgreeAlways(hwndDlg , (isChecked)) ; break ;
+#endif AUTO_ACCEPT_LICENSE
+
+				case IDC_AGREE:						handleAgree(hwndDlg , (isChecked)) ; break;
         case IDOK:								EndDialog(hwndDlg , 1) ; break ;
         case IDCANCEL:						EndDialog(hwndDlg , 0) ; break ;
       }
 		}
+		case WM_CLOSE: EndDialog(hwndDlg , 0) ; return 0 ;
     return 0;
-
   }
   return 0;
 }

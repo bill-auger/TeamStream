@@ -157,7 +157,8 @@
 
 // timers
 #define IDT_AUTO_JOIN_TIMER											5000
-#define IDT_LINKS_CHAT_TIMER										5001
+#define IDT_LOCAL_USER_INIT_TIMER								5001
+#define IDT_LINKS_CHAT_TIMER										5002
 
 // menu
 #define ID_FILE_CONNECT                         40001

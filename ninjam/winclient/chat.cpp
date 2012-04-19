@@ -99,7 +99,8 @@ void handleLinksMsg(char* senderUsername , char* msgIn)
 
 bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)
 {
-	bool isHandleTriggers = (TeamStream::IsLocalTeamStreamUserExist()) ; // initTeamStream() success
+#if TEAMSTREAM_CHAT
+	bool isHandleTriggers = (TeamStream::IsTeamStream()) ;
 
 	if (!strncmp(msgIn , COLOR_CHAT_TRIGGER , COLOR_CHAT_TRIGGER_LEN))
 		{ if (isHandleTriggers) handleChatColorMsg(username , msgIn) ; }
@@ -111,13 +112,20 @@ bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool 
 		{ if (isHandleTriggers) handleLinksMsg(username , msgIn) ; }
 	else return false ; // default chat processing
 	return true ; // suppress default chat processing
+#else TEAMSTREAM_CHAT
+	return false ;
+#endif TEAMSTREAM_CHAT
 }
 
 void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 {
   if (!parms[0]) return;
 
+#if TEAMSTREAM_CHAT
 	char* username = TeamStream::TrimUsername(parms[1]) ;	
+#else TEAMSTREAM_CHAT
+	char* username = parms[1] ;	
+#endif TEAMSTREAM_CHAT
 
   if (!strcmp(parms[0],"TOPIC"))
   {
@@ -273,6 +281,7 @@ void chatRun(HWND hwndDlg)
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
   GetScrollInfo(m_hwnd,SB_VERT,&si);
 
+#if TEAMSTREAM_COLORCHAT
   {
     int oldsels,oldsele;
     SendMessage(m_hwnd,EM_GETSEL,(WPARAM)&oldsels,(LPARAM)&oldsele);
@@ -373,6 +382,7 @@ void chatRun(HWND hwndDlg)
 		// original link parser code was here ------->
 */
 	}
+#endif TEAMSTREAM_COLORCHAT
 
   if (GetFocus() == m_hwnd)      
   {

@@ -66,18 +66,22 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
           g_client_mutex.Leave();
         break;
 
+#if TEAMSTREAM
 				// link assignment and ordering (see also winclient.cpp MainProc())
         case IDC_LINKUP: case IDC_LINKDN:
 					if (TeamStream::ShiftRemoteLinkIdx(g_client->GetUserId(m_user) , (LOWORD(wParam) == IDC_LINKUP)))
 						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
         break ;
+#endif TEAMSTREAM
 			}
     break;
 
+#if TEAMSTREAM
 		case WM_TIMER:
 			if (wParam == IDT_LINKS_CHAT_TIMER)
 				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
 		break ;
+#endif TEAMSTREAM
   }
   return 0;
 }
@@ -283,9 +287,11 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
               ShowWindow(h,SW_SHOWNA);
               did_sizing=1;
 
+#if TEAMSTREAM
 // TODO: this m_children.Set(pos,h); maybe just what we need for swapping user positions
 //		it would appear that 'us' id userIdx does that imply that 'pos' is the vertical windows stack pos?
 							TeamStream::SetUserGUIHandleWin32(us , h) ;
+#endif TEAMSTREAM
             }
             SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,0);
             RECT r;

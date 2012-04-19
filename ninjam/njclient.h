@@ -171,7 +171,9 @@ public:
   void SetOggOutFile(FILE *fp, int srate, int nch, int bitrate=128);
   WaveWriter *waveWrite;
 
+#if TEAMSTREAM
 	int GetUserId(int userIdx) ;
+#endif TEAMSTREAM
 
   int LicenseAgreement_User32;
   int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts

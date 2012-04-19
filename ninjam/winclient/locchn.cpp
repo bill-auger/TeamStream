@@ -215,7 +215,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           }
         break;
 
-#if TODO
+#if TEAMSTREAM
 		case IDC_IOBTN:
 		{
 			SetDlgItemText(hwndDlg , IDC_IOBTN , (ioBtnToggle = !ioBtnToggle)? "Input" : "Output");
