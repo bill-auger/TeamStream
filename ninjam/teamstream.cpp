@@ -107,19 +107,25 @@ void TeamStream::InitTeamStream()
 	m_teamstream_users.Add(new TeamStreamUser(USERNAME_SERVER , USERID_SERVER , CHAT_COLOR_SERVER , USERNAME_SERVER)) ;
 }
 
-bool TeamStream::GetTeamStreamState() { return m_teamstream_enabled ; }
-
-void TeamStream::SetTeamStreamState(bool isEnable , char* currHost)
+void TeamStream::BeginTeamStream(char* currHost , char* localUsername , int chatColorIdx , bool isEnable , char* fullUserName)
 {
 	// NOTE: for now we are restricting TeamStreaming to private servers only
-	if (!isEnable || (!ValidateHost(currHost , false) && ValidateHost(currHost , true)))
-		m_teamstream_enabled = isEnable ;
+	if (!currHost || ValidateHost(currHost , false) || !ValidateHost(currHost , true)) return ;
+
+	SetTeamStreamState(true) ;
+	TeamStream::AddLocalUser(localUsername , chatColorIdx , isEnable , fullUserName) ;
 }
+
+bool TeamStream::GetTeamStreamState() { return m_teamstream_enabled ; }
+
+void TeamStream::SetTeamStreamState(bool isEnable) { m_teamstream_enabled = isEnable ; }
 
 void TeamStream::ResetTeamStreamState()
 {
+	Set_TeamStream_Mode_GUI(USERID_LOCAL , false) ; Clear_Chat() ;
+
 	// delete all real users
-	int n = GetNUsers() ; SetTeamStreamState(false , NULL) ;
+	int n = GetNUsers() ; SetTeamStreamState(false) ;
 	while (n-- > N_PHANTOM_USERS) m_teamstream_users.Delete(n) ;
 }
 
@@ -127,10 +133,8 @@ int TeamStream::GetNUsers() { return m_teamstream_users.GetSize() ; }
 
 int TeamStream::GetNRemoteUsers() { return m_teamstream_users.GetSize() - N_STATIC_USERS ; }
 
-
-void TeamStream::AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* currHost , char* fullUserName)
+void TeamStream::AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName)
 {
-	SetTeamStreamState(true , currHost) ;
 	m_teamstream_users.Add(new TeamStreamUser(username , USERID_LOCAL , chatColorIdx , fullUserName)) ;
 	SetTeamStreamMode(USERID_LOCAL , isEnable) ;
 }
@@ -298,7 +302,7 @@ void TeamStream::SendChatMsg(char* chatMsg) { Send_Chat_Message(chatMsg) ; }
 void TeamStream::SendChatPvtMsg(char* chatMsg , char* destFullUserName) { Send_Chat_Pvt_Message(destFullUserName , chatMsg) ; }
 
 void TeamStream::SendTeamStreamChatMsg(bool isPrivate , char* destFullUserName)
-{ if (1) return ;
+{
 	if (!IsTeamStream()) return ;
 
 	WDL_String chatMsg ; chatMsg.Set(TEAMSTREAM_CHAT_TRIGGER) ;
@@ -307,11 +311,10 @@ void TeamStream::SendTeamStreamChatMsg(bool isPrivate , char* destFullUserName)
 }
 
 void TeamStream::SendLinksReqChatMsg(char* fullUserName)
-{ if (1) return ; }
-//	{ SendChatPvtMsg(LINKS_REQ_CHAT_TRIGGER , fullUserName) ; }
+	{ SendChatPvtMsg(LINKS_REQ_CHAT_TRIGGER , fullUserName) ; }
 
 void TeamStream::SendLinksChatMsg(bool isPrivate , char* destFullUserName)
-{ if (1) return ;
+{
 	WDL_String chatMsg ; chatMsg.Append(LINKS_CHAT_TRIGGER) ;
 	int linkIdx ; for (linkIdx = 0 ; linkIdx < N_LINKS ; ++linkIdx)
 		{ chatMsg.Append(GetUsernameByLinkIdx(linkIdx)) ; chatMsg.Append(" ") ; }
@@ -319,7 +322,7 @@ void TeamStream::SendLinksChatMsg(bool isPrivate , char* destFullUserName)
 }
 
 void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
-{ if (1) return ;
+{
 	char chatMsg[255] ; sprintf(chatMsg , "%s%d" , COLOR_CHAT_TRIGGER , GetChatColorIdx(USERID_LOCAL)) ;
 	if (isPrivate) SendChatPvtMsg(chatMsg , destFullUserName) ; else SendChatMsg(chatMsg) ;
 }
@@ -338,6 +341,7 @@ void (*TeamStream::Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) = NULL
 COLORREF (*TeamStream::Get_Chat_Color)(int idx) = NULL ;
 void (*TeamStream::Send_Chat_Message)(char* chatMsg) = NULL ;
 void (*TeamStream::Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) = NULL ;
+void (*TeamStream::Clear_Chat)() = NULL ;
 
 
 /* private menbers */

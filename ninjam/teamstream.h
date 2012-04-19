@@ -28,14 +28,19 @@
 #define TEAMSTREAM 1
 #if TEAMSTREAM
 #define TEAMSTREAM_INIT 1
+#define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
-#define TEAMSTREAM_COLORCHAT 1 // optional
-#define TEAMSTREAM_GUI_LISTVIEW 0 // optional
+#define TEAMSTREAM_GUI_LISTVIEW 0 // optional // buggy
+#define COLOR_CHAT 1 // optional
+#define IS_CHAT_LINKS 1
 #endif TEAMSTREAM
+#define UPDATE_CHECK 0
 #define AUTO_ACCEPT_LICENSE 1
 #define AUTO_JOIN 1
 #define CHAT_MUTEX_CENTRALIZED 1
-#define HORIZ_RESIZE 0
+#define HORIZ_RESIZE 0 // buggy
+#define CLICKABLE_URLS_IN_CHAT 1
+
 
 /* TeamStream #defines */
 // NOTE: last on chain has no one to stream to and 2nd to last is not delayed so
@@ -101,7 +106,7 @@
 #define LINKS_CHAT_TRIGGER_LEN 7
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
-#define LINKS_CHAT_DELAY 200 // for IDT_LINKS_CHAT_TIMER
+#define LINKS_CHAT_DELAY 1000 // for IDT_LINKS_CHAT_TIMER
 
 /* license.cpp includes */
 //#include <string>
@@ -180,12 +185,13 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 
 		// user creation/destruction/query
 		static void InitTeamStream() ;
+		static void BeginTeamStream(char* currHost , char* localUsername , int chatColorIdx , bool isEnable , char* fullUserName) ;
 		static bool GetTeamStreamState() ; // alias IsTeamStream()
-		static void SetTeamStreamState(bool isEnable , char* currHost) ;
+		static void SetTeamStreamState(bool isEnable) ;
 		static void ResetTeamStreamState() ;
 		static int GetNUsers() ;
 		static int GetNRemoteUsers() ;
-		static void AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* currHost , char* fullUserName) ;
+		static void AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName) ;
 		static int AddUser(char* username , char* fullUserName) ;
 		static void RemoveUser(char* fullUserName) ;
 		static bool IsTeamStreamUsernameCollision(char* shortUsername) ;
@@ -229,8 +235,9 @@ static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK
 #endif TEAMSTREAM_GUI_LISTVIEW
 		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
 		static COLORREF (*Get_Chat_Color)(int idx) ;
-		static void (*Send_Chat_Message)(char* chatMsg) ; // merged
-		static void (*Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) ; // merged
+		static void (*Send_Chat_Message)(char* chatMsg) ;
+		static void (*Send_Chat_Pvt_Message)(char* destFullUserName , char* chatMsg) ;
+		static void (*Clear_Chat)() ;
 
 	private:
 		static WDL_PtrList<TeamStreamUser> m_teamstream_users ; static int m_next_id ;

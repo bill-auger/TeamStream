@@ -93,7 +93,7 @@ static HWND m_color_picker_toggle , m_color_picker , m_color_btn_hwnds[N_CHAT_CO
 
 /* web server requests */
 
-#if UPDATE_CHECK_IMPLEMENTED // perhaps user JNL lib instead
+#if UPDATE_CHECK // perhaps user JNL lib instead (if so we can move this into TeamStream)
 void httpGetString(char* url , char* outBuff , int buffSize)
 {
 bool DEBUG = false ;
@@ -124,9 +124,11 @@ bool DEBUG = false ;
 		} else { if (DEBUG) MessageBox(NULL , "InternetOpen() fail" , "HttpGetFile()" , MB_OK) ; }
 	} else { if (DEBUG) MessageBox(NULL , "InternetAttemptConnect() fail" , "HttpGetFile()" , MB_OK) ; }
 }
+#endif UPDATE_CHECK
 
 void checkServerForUpdate()
 {
+#if UPDATE_CHECK
 	//char getString[128] ; httpGetString(VERSION_CHECK_URL , getString , 128) ;
 //g_client->DBG("httpGetString" , getString) ;
 // TODO: we need to update this to parse for major.minor.rev 0.07.01
@@ -148,8 +150,8 @@ char* expectedResult = "0.07.teamstream http://www.google.com" ;
 			chat_addline("TeamStream", updateChatMsg) ;
 		}
 	}
+#endif UPDATE_CHECK
 }
-#endif UPDATE_CHECK_IMPLEMENTED
 
 
 /* GUI helpers */
@@ -290,6 +292,8 @@ dbgListbox(listIdx , username , "removed") ;
 
 /* chat functions */
 
+void clearChat() { SetWindowText(GetDlgItem(g_hwnd , IDC_CHATDISP) , "") ; }
+
 void SendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
 
 void SendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
@@ -349,9 +353,7 @@ void setTeamStreamModeGUI(int userId , bool isEnable)
 void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
 {
 	char linkPosText[24] ;
-//	if (linkIdx == N_LINKS) sprintf(linkPosText , "TeamStream Position:  ") ;
-	if (linkIdx == N_LINKS) sprintf(linkPosText , "Listening Only") ; // TODO: decide
-//	if (linkIdx == N_LINKS) sprintf(linkPosText , "Not TeamStreaming") ;
+	if (linkIdx == N_LINKS) sprintf(linkPosText , "Listening Only") ;
 	else sprintf(linkPosText , "TeamStream Position: %d" , linkIdx + 1) ;
 	if (userId == USERID_LOCAL) SetDlgItemText(g_hwnd , IDC_LINKLBL , linkPosText) ;
 	else if (userId > USERID_LOCAL)
@@ -366,11 +368,7 @@ void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
 
 /* init */
 
-void winInit() { TeamStream::InitTeamStream() ;
-#if UPDATE_CHECK_IMPLEMENTED
-checkServerForUpdate() ;
-#endif UPDATE_CHECK_IMPLEMENTED
-}
+void winInit() { TeamStream::InitTeamStream() ; checkServerForUpdate() ; }
 
 void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 {
@@ -401,8 +399,7 @@ void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 
 	int chatColorIdx = TeamStream::ReadTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , CHAT_COLOR_DEFAULT) ;
 	char* currHost = strtok(g_client->GetHostName() , ":") ;
-	TeamStream::AddLocalUser(localUsername , chatColorIdx , isEnable , currHost , fullUserName) ;
-	setTeamStreamMenuItems(isEnable) ;
+	TeamStream::BeginTeamStream(currHost , localUsername , chatColorIdx , isEnable , fullUserName) ;
 }
 #endif TEAMSTREAM
 
@@ -804,7 +801,7 @@ static void do_connect()
   g_client->SetWorkDir(buf);
 
   g_client->config_savelocalaudio=0;
-  if (GetPrivateProfileInt(CONFSEC,"savelocal",1,g_ini_file.Get()))
+  if (GetPrivateProfileInt(CONFSEC,"savelocal",0,g_ini_file.Get()))
   {
     g_client->config_savelocalaudio|=1;
     if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get())) 
@@ -1059,7 +1056,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				// remotes (bottom left lower)
 				resize.init_item(IDC_REMOTERECT ,		0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
 				resize.init_item(IDC_REMGRP ,				0.0f ,			chanRatio ,	chatRatio ,	1.0f) ;
-				// chat (bottom right) // merged
+				// chat (bottom right)
 				resize.init_item(IDC_CHATGRP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_CHATDISP ,			chatRatio ,	0.0f ,			1.0f,			1.0f) ;
 				resize.init_item(IDC_CHATENT ,			chatRatio ,	1.0f ,			1.0f,			1.0f) ;
@@ -1875,6 +1872,7 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 		break;
 
 #if TEAMSTREAM
+#if CLICKABLE_URLS_IN_CHAT
 		case WM_NOTIFY:
 		{
 			LPNMHDR hdr = (LPNMHDR)lParam ;
@@ -1896,6 +1894,7 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 			}
 		}
 		break ;
+#endif CLICKABLE_URLS_IN_CHAT
 
 		case WM_SETCURSOR:
 			if(LOWORD(lParam) == HTCLIENT)
@@ -1904,11 +1903,11 @@ SetWindowPos(m_links_listbox , NULL , 0 , 0 , 0 , 0 , NULL) ;
 				GetWindowRect(m_horiz_split , &r) ; // Local/Remote split
 				if (p.x >= r.left && p.x <= r.right &&  p.y >= r.top - 4 && p.y <= r.bottom + 4)
 					{ isChangeCursor = true ; cursor = IDC_SIZENS ; }
-#if HORIZ_RESIZE_IMPLEMENTED
+#if HORIZ_RESIZE
 				GetWindowRect(m_vert_split , &r) ; // Channels/Chat split
 				if (p.x >= r.left && p.x <= r.right &&  p.y >= r.top - 4 && p.y <= r.bottom + 4)
 					{ isChangeCursor = true ; cursor = IDC_SIZEWE ; }
-#endif HORIZ_RESIZE_IMPLEMENTED
+#endif HORIZ_RESIZE
 
 				if (isChangeCursor) { SetCursor(LoadCursor(NULL , cursor)); return TRUE ; }
 			}
@@ -2116,8 +2115,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 #endif TEAMSTREAM_GUI_LISTVIEW
 	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Get_Chat_Color = getChatColor ;
-	TeamStream::Send_Chat_Message = SendChatMessage ; // merged
-	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ; // merged
+	TeamStream::Send_Chat_Message = SendChatMessage ;
+	TeamStream::Send_Chat_Pvt_Message = SendChatPvtMessage ;
+	TeamStream::Clear_Chat = clearChat ;
 #endif TEAMSTREAM
 
   HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));

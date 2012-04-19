@@ -20,8 +20,8 @@ IDR_MENU1 MENU
     }
     POPUP "&TeamStream"
     {
-        MENUITEM "&TeamStream Mode\tCtrl+T", ID_TEAMSTREAM_ON, CHECKED
-        MENUITEM "&NinJam Mode\tCtrl+N", ID_TEAMSTREAM_OFF
+        MENUITEM "&TeamStream Mode\tCtrl+T", ID_TEAMSTREAM_ON
+        MENUITEM "&NinJam Mode\tCtrl+N", ID_TEAMSTREAM_OFF, CHECKED
         MENUITEM SEPARATOR
 				MENUITEM "&Load Config (nyi)\tCtrl+L", ID_TEAMSTREAM_LOAD
         MENUITEM "&Save Config (nyi)\tCtrl+S", ID_TEAMSTREAM_SAVE
@@ -292,7 +292,7 @@ FONT 8, "MS Sans Serif", 0, 0, 1
 		// locals
     GROUPBOX        "Local Channels", IDC_LOCGRP, 7, 55, 337, 74//, 0, WS_EX_TRANSPARENT
 		PUSHBUTTON      "-", IDC_LINKUP, 123, 53, 12, 12, NOT WS_VISIBLE
-		LTEXT           "TeamStream Position:  ", IDC_LINKLBL, 137, 55, 76, 8, SS_CENTER | NOT WS_VISIBLE
+		LTEXT           "Listening Only", IDC_LINKLBL, 137, 55, 76, 8, SS_CENTER | NOT WS_VISIBLE
 		PUSHBUTTON      "+", IDC_LINKDN, 215, 53, 12, 12, NOT WS_VISIBLE
     PUSHBUTTON      "+", IDC_ADDCH, 337, 53, 12, 12
     CONTROL         "", IDC_LOCRECT, WC_STATIC, NOT WS_VISIBLE | SS_BLACKRECT, 13, 66, 327, 56

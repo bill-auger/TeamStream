@@ -133,6 +133,7 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
         case IDCANCEL:						EndDialog(hwndDlg , 0) ; break ;
       }
 		}
+		break ;
 		case WM_CLOSE: EndDialog(hwndDlg , 0) ; return 0 ;
     return 0;
   }

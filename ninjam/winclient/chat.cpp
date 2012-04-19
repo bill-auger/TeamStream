@@ -29,7 +29,7 @@
 #include "winclient.h"
 #include "resource.h"
 
-HWND g_hwnd ;
+HWND g_hwnd ; HWND g_chat_hwnd ;
 bool cfg_color_names_only = false ;
 
 
@@ -94,7 +94,9 @@ void handleLinksMsg(char* senderUsername , char* msgIn)
 			if (TeamStream::IsUserIdReal(userId)) TeamStream::SetLink(userId , username , linkIdx , true) ;
 			else TeamStream::Set_Link_GUI(USERID_NOBODY , username , linkIdx , N_LINKS) ;
 	}
+#if IS_CHAT_LINKS
 	chat_addline("TeamStream" , msgOut.Get()) ;
+#endif IS_CHAT_LINKS
 }
 
 bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)
@@ -121,11 +123,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 {
   if (!parms[0]) return;
 
-#if TEAMSTREAM_CHAT
 	char* username = TeamStream::TrimUsername(parms[1]) ;	
-#else TEAMSTREAM_CHAT
-	char* username = parms[1] ;	
-#endif TEAMSTREAM_CHAT
 
   if (!strcmp(parms[0],"TOPIC"))
   {
@@ -225,11 +223,14 @@ void chatInit(HWND hwndDlg)
   chatw_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATDISP),GWL_WNDPROC,(LONG)chatw_newWndProc);
   chate_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATENT),GWL_WNDPROC,(LONG)chate_newWndProc);
 
-	g_hwnd = hwndDlg ; HWND chatdisplay_hwnd = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
-	unsigned mask = SendMessage(chatdisplay_hwnd , EM_GETEVENTMASK , 0 , 0) ;
-	SendMessage(chatdisplay_hwnd , EM_SETEVENTMASK , 0 , mask | ENM_LINK) ;
-	SendMessage(chatdisplay_hwnd , EM_AUTOURLDETECT , true , 0) ;
+	g_hwnd = hwndDlg ; g_chat_hwnd = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
+
+#if CLICKABLE_URLS_IN_CHAT
+	unsigned mask = SendMessage(g_chat_hwnd , EM_GETEVENTMASK , 0 , 0) ;
+	SendMessage(g_chat_hwnd , EM_SETEVENTMASK , 0 , mask | ENM_LINK) ;
+	SendMessage(g_chat_hwnd , EM_AUTOURLDETECT , true , 0) ;
 // NOTE: Alternatively, lParam can point to a null-terminated string consisting of one or more colon-terminated scheme names that supersede the default scheme name list. For example, the string could be "news:http:ftp:telnet:".
+#endif CLICKABLE_URLS_IN_CHAT
 }
 
 WDL_String m_append_text;
@@ -277,18 +278,17 @@ void chatRun(HWND hwndDlg)
   g_client_mutex.Leave();
 
   if (!tmp.Get()[0]) return;
-  HWND m_hwnd=GetDlgItem(hwndDlg,IDC_CHATDISP);
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
-  GetScrollInfo(m_hwnd,SB_VERT,&si);
+  GetScrollInfo(g_chat_hwnd , SB_VERT , &si) ;
 
-#if TEAMSTREAM_COLORCHAT
+#if COLOR_CHAT
   {
     int oldsels,oldsele;
-    SendMessage(m_hwnd,EM_GETSEL,(WPARAM)&oldsels,(LPARAM)&oldsele);
+    SendMessage(g_chat_hwnd , EM_GETSEL , (WPARAM)&oldsels , (LPARAM)&oldsele) ;
 	  char txt[32768];
 	  if(strlen(tmp.Get())>sizeof(txt)-1) return;
 
-	  GetWindowText(m_hwnd,txt,sizeof(txt)-1);
+	  GetWindowText(g_chat_hwnd , txt , sizeof(txt)-1) ;
 	  txt[sizeof(txt)-1]=0;
 
 	  while(strlen(txt)+strlen(tmp.Get())+4>sizeof(txt))
@@ -311,10 +311,10 @@ void chatRun(HWND hwndDlg)
     cf2.cbSize=sizeof(cf2);
     cf2.dwMask=CFM_LINK;
     cf2.dwEffects=0;
-    SendMessage(m_hwnd,EM_SETCHARFORMAT,SCF_ALL,(LPARAM)&cf2);
-	  SetWindowText(m_hwnd,txt);
+    SendMessage(g_chat_hwnd , EM_SETCHARFORMAT , SCF_ALL , (LPARAM)&cf2) ;
+	  SetWindowText(g_chat_hwnd , txt) ;
 
-    GetWindowText(m_hwnd,txt,sizeof(txt)-1);
+    GetWindowText(g_chat_hwnd , txt , sizeof(txt)-1) ;
     txt[sizeof(txt)-1]=0;
 
 		char *t = txt ; int sub=0 ; 	char lt = '\n' ;		
@@ -352,14 +352,14 @@ void chatRun(HWND hwndDlg)
 					CHARFORMAT2 cf2 ; cf2.cbSize = sizeof(cf2) ;
 					// bold text - sender name
 					cf2.dwMask = CFM_COLOR | CFM_BOLD ; cf2.crTextColor = color ; cf2.dwEffects = CFE_BOLD ;
-					SendMessage(m_hwnd , EM_SETSEL , lineBegin , boldEnd) ;
-					SendMessage(m_hwnd , EM_SETCHARFORMAT , SCF_SELECTION , (LPARAM)&cf2) ;
+					SendMessage(g_chat_hwnd , EM_SETSEL , lineBegin , boldEnd) ;
+					SendMessage(g_chat_hwnd , EM_SETCHARFORMAT , SCF_SELECTION , (LPARAM)&cf2) ;
 					if (!cfg_color_names_only)
 					{
 						// normal text - everything after bold text
 						cf2.dwMask = CFM_COLOR ; cf2.crTextColor = color ;
-						SendMessage(m_hwnd , EM_SETSEL , normalBegin , lineEnd) ;
-						SendMessage(m_hwnd , EM_SETCHARFORMAT , SCF_SELECTION , (LPARAM)&cf2) ;
+						SendMessage(g_chat_hwnd , EM_SETSEL , normalBegin , lineEnd) ;
+						SendMessage(g_chat_hwnd , EM_SETCHARFORMAT , SCF_SELECTION , (LPARAM)&cf2) ;
 					}
 				}
       } // if terminator char
@@ -382,15 +382,16 @@ void chatRun(HWND hwndDlg)
 		// original link parser code was here ------->
 */
 	}
-#endif TEAMSTREAM_COLORCHAT
+#endif COLOR_CHAT
 
-  if (GetFocus() == m_hwnd)      
+  if (GetFocus() == g_chat_hwnd)      
   {
-    SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nTrackPos),0);
+    SendMessage(g_chat_hwnd , WM_VSCROLL , MAKEWPARAM(SB_THUMBPOSITION , si.nTrackPos) , 0) ;
   }
   else
   {
-    GetScrollInfo(m_hwnd,SB_VERT,&si);
-    SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nMax),0);
+    GetScrollInfo(g_chat_hwnd , SB_VERT , &si) ;
+    SendMessage(g_chat_hwnd , WM_VSCROLL , MAKEWPARAM(SB_THUMBPOSITION , si.nMax) , 0) ;
   }
 }
+
