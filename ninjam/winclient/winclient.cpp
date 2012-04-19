@@ -161,8 +161,9 @@ void setFocusChat() { SendDlgItemMessage(g_hwnd , IDC_CHATENT , WM_SETFOCUS , 0 
 void setBpiBpmLabels(char* bpiString , char* bpmString)
 	{ SetDlgItemText(g_hwnd , IDC_BPILBL , bpiString) ; SetDlgItemText(g_hwnd , IDC_BPMLBL , bpmString) ; }
 
-void setTeamStreamMenuItems(bool isOn)
+void setTeamStreamMenuItems()
 {
+	bool isOn = TeamStream::ReadTeamStreamConfigBool(ENABLED_CFG_KEY , 1) ;
 	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_ON , (isOn)? MF_CHECKED : MF_UNCHECKED) ;
 	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ;
 }
@@ -336,7 +337,7 @@ void setTeamStreamModeGUI(int userId , bool isEnable)
 	UINT showHide = (isEnable)? SW_SHOWNA : SW_HIDE ;
 	if (userId == USERID_LOCAL)
 	{
-		setTeamStreamMenuItems(isEnable) ;
+		setTeamStreamMenuItems() ;
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKUP) , showHide) ;
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKLBL) , showHide) ;
 		ShowWindow(GetDlgItem(g_hwnd , IDC_LINKDN) , showHide) ;
@@ -1426,7 +1427,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			else if (wParam == IDT_LOCAL_USER_INIT_TIMER)
 			{
 				KillTimer(hwndDlg , IDT_LOCAL_USER_INIT_TIMER) ;
-				bool isEnable = TeamStream::ReadTeamStreamConfigBool("teamstreamEnabled" , 1) ;
+				bool isEnable = TeamStream::ReadTeamStreamConfigBool(ENABLED_CFG_KEY , true) ;
 				initTeamStreamUser(hwndDlg , isEnable) ;
 			}
 #endif TEAMSTREAM_INIT
@@ -1837,10 +1838,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				// TeamStream menu items
 				case ID_TEAMSTREAM_ON:
 					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
-					else initTeamStreamUser(hwndDlg , true) ;
+					else if (g_is_logged_in) initTeamStreamUser(hwndDlg , true) ;
+					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , true) ; setTeamStreamMenuItems() ;
 				break ;
 				case ID_TEAMSTREAM_OFF:
-					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ; break ;
+					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ;
+					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , false) ; setTeamStreamMenuItems() ;
+				break ;
 				case ID_TEAMSTREAM_LOAD: // TODO:
 				break ;
 				case ID_TEAMSTREAM_SAVE: // TODO:

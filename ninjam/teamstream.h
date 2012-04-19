@@ -86,6 +86,7 @@
 #define SERVER_LICENSE_TEXTFILE "_license.txt"
 #define AGREE_CFG_KEY "agree_"
 #define AUTO_JOIN_CFG_KEY "auto_join_hosts"
+#define ENABLED_CFG_KEY "teamstream_enabled"
 #define CHAT_COLOR_CFG_KEY "chat_color_idx"
 
 /* chat color defines */
