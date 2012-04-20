@@ -89,6 +89,8 @@
 #define AUTO_JOIN_CFG_KEY "auto_join_hosts"
 #define ENABLED_CFG_KEY "teamstream_enabled"
 #define CHAT_COLOR_CFG_KEY "chat_color_idx"
+#define METROMUTE_CFG_KEY "metromute"
+
 
 /* chat color defines */
 #define N_CHAT_COLORS 18

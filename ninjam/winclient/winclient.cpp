@@ -73,6 +73,8 @@ static int g_last_wndpos_state;
 #if TEAMSTREAM
 static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
+static HWND m_metro_grp , m_metro_mute , m_metro_vollbl , m_metro_vol ;
+static HWND m_metro_panlbl , m_metro_pan , m_bpi_lbl , m_bpm_lbl ;
 static HWND m_bpi_btn , m_bpi_edit , m_bpm_btn , m_bpm_edit ;
 static HWND m_linkup_btn , m_teamstream_lbl , m_linkdn_btn ;
 #if TEAMSTREAM_W32_LISTVIEW
@@ -361,11 +363,12 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 
 /* GUI functions */
 
-void setTeamStreamModeGUI(int userId , bool isEnable)
+void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
 {
-	UINT showHide = (isEnable)? SW_SHOWNA : SW_HIDE ;
+	UINT showHide = (isEnableTeamStream)? SW_SHOWNA : SW_HIDE ;
 	if (userId == USERID_LOCAL)
 	{
+		// teamstream items
 		setTeamStreamMenuItems() ;
 		ShowWindow(m_linkup_btn ,				showHide) ;
 		ShowWindow(m_teamstream_lbl ,		showHide) ;
@@ -374,6 +377,25 @@ void setTeamStreamModeGUI(int userId , bool isEnable)
 		ShowWindow(m_links_listview ,			showHide) ;
 		ShowWindow(m_interval_progress ,	!showHide) ;
 #endif TEAMSTREAM_W32_LISTVIEW
+
+		// metronome items
+		EnableWindow(m_metro_grp ,	!isEnableTeamStream) ;
+		EnableWindow(m_metro_mute ,	!isEnableTeamStream) ;
+		EnableWindow(m_metro_vollbl ,	!isEnableTeamStream) ;
+		EnableWindow(m_metro_vol ,	!isEnableTeamStream) ;
+		EnableWindow(m_metro_panlbl ,	!isEnableTeamStream) ;
+		EnableWindow(m_metro_pan ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpi_lbl ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpm_lbl ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpi_btn ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpi_edit ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpm_btn ,	!isEnableTeamStream) ;
+		EnableWindow(m_bpm_edit ,	!isEnableTeamStream) ;
+
+		// force metro mute in TeamStream mode
+		bool isCheck = ((isEnableTeamStream) || (GetPrivateProfileInt(CONFSEC , METROMUTE_CFG_KEY , 0 , g_ini_file.Get()))) ;
+		CheckDlgButton(g_hwnd , IDC_METROMUTE , (isCheck)? BST_CHECKED : BST_UNCHECKED);
+		g_client->config_metronome_mute = isCheck ;
 	}
 	else
 	{
@@ -1154,15 +1176,25 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         m_remwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,RemoteOuterChannelListProc);
 
 #if TEAMSTREAM
+				// divs
 				m_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; m_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
 
+				// metro
+				m_metro_grp = GetDlgItem(hwndDlg , IDC_METROGRP) ;
+				m_metro_mute = GetDlgItem(hwndDlg , IDC_METROMUTE) ;
+				m_metro_vollbl = GetDlgItem(hwndDlg , IDC_METROVOLLBL) ;
+				m_metro_vol = GetDlgItem(hwndDlg , IDC_METROVOL) ;
+				m_metro_panlbl = GetDlgItem(hwndDlg , IDC_METROPANLBL) ;
+				m_metro_pan = GetDlgItem(hwndDlg , IDC_METROPAN) ;
+				m_bpi_lbl = GetDlgItem(hwndDlg , IDC_BPILBL) ;
+				m_bpm_lbl = GetDlgItem(hwndDlg , IDC_BPMLBL) ;
 				m_bpi_btn = GetDlgItem(hwndDlg , IDC_VOTEBPIBTN) ;
 				m_bpi_edit = GetDlgItem(hwndDlg , IDC_VOTEBPIEDIT) ;
 				m_bpm_btn = GetDlgItem(hwndDlg , IDC_VOTEBPMBTN) ;
 				m_bpm_edit = GetDlgItem(hwndDlg , IDC_VOTEBPMEDIT) ;
 
+				// chat
 				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
-
 				m_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
 				m_color_picker = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_COLORPICKER) , hwndDlg , ColorPickerProc) ;
 				m_color_btn_hwnds[0] = GetDlgItem(m_color_picker , IDC_COLORDKWHITE) ;
@@ -1690,6 +1722,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         break;
         case IDC_METROMUTE:
           g_client->config_metronome_mute =!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+					WritePrivateProfileString(CONFSEC , METROMUTE_CFG_KEY , (g_client->config_metronome_mute)? "1" : "0" , g_ini_file.Get()) ;
         break;
         case ID_FILE_DISCONNECT:
           do_disconnect();
