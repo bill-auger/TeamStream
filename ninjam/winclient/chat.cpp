@@ -29,6 +29,7 @@
 #include "winclient.h"
 #include "resource.h"
 
+
 HWND g_hwnd ; HWND g_chat_hwnd ;
 bool cfg_color_names_only = false ;
 
@@ -99,6 +100,13 @@ void handleLinksMsg(char* senderUsername , char* msgIn)
 #endif IS_CHAT_LINKS
 }
 
+void handleVoteMsg(char* username , char* msgIn)
+{
+	WDL_String msgOut ; msgOut.Set("<") ; msgOut.Append(username) ;
+	msgOut.Append("> votes to set") ; msgOut.Append(msgIn + VOTE_CHAT_TRIGGER_LEN) ;
+	chat_addline("TeamStream" , msgOut.Get()) ; //TODO: make this prettier
+}
+
 bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)
 {
 #if TEAMSTREAM_CHAT
@@ -112,6 +120,8 @@ bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool 
 		{ if (isHandleTriggers) handleLinksReqMsg(fullUserName) ; }
 	else if (!strncmp(msgIn , LINKS_CHAT_TRIGGER , LINKS_CHAT_TRIGGER_LEN))
 		{ if (isHandleTriggers) handleLinksMsg(username , msgIn) ; }
+	else if (!strncmp(msgIn , VOTE_CHAT_TRIGGER , VOTE_CHAT_TRIGGER_LEN))
+		handleVoteMsg(username , msgIn) ;
 	else return false ; // default chat processing
 	return true ; // suppress default chat processing
 #else TEAMSTREAM_CHAT

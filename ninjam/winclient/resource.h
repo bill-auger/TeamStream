@@ -121,6 +121,10 @@
 #define IDC_METROGRP                            1501
 #define IDC_BPILBL			                        1502
 #define IDC_BPMLBL		                          1503
+#define IDC_VOTEBPIBTN													1504
+#define IDC_VOTEBPIEDIT													1505
+#define IDC_VOTEBPMBTN													1506
+#define IDC_VOTEBPMEDIT													1507
 
 // chat color picker
 #define IDC_COLORTOGGLE													2000

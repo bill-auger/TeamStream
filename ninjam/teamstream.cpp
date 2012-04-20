@@ -177,7 +177,7 @@ void TeamStream::RemoveUser(char* fullUserName)
 	Remove_From_Users_Listbox(TrimUsername(fullUserName)) ;
 #endif TEAMSTREAM_W32_LISTVIEW
 }
-
+// TODO: eventually we should not be concerned with username collisions (we have m_id now)
 bool TeamStream::IsTeamStreamUsernameCollision(char* username)
 {
 	int i = GetNUsers() ; while (i-- && m_teamstream_users.Get(i)->m_name != username) ;
@@ -265,9 +265,18 @@ void TeamStream::SetTeamStreamMode(int userId , bool isEnable)
 	if (!IsUserIdReal(userId)) return ;
 
 	Set_TeamStream_Mode_GUI(userId , isEnable) ;
-	if (userId > USERID_LOCAL) { GetUserById(userId)->m_teamstream_enabled = isEnable ; return ; }
-	else if (userId != USERID_LOCAL) return ;
 
+	// if remote user
+	if (userId > USERID_LOCAL)
+	{
+		GetUserById(userId)->m_teamstream_enabled = isEnable ;
+		char* username = GetUserById(userId)->m_name ;
+		if (isEnable) Add_To_Users_Listbox(username) ;
+		else Remove_From_Users_Listbox(username) ;
+	}
+	if (userId != USERID_LOCAL) return ;
+
+	// if local user
 	bool isEnabled = GetTeamStreamMode(USERID_LOCAL) ;
 	if ((isEnable && isEnabled) || (!isEnable  && !isEnabled)) return ;
 

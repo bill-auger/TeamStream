@@ -73,6 +73,7 @@ static int g_last_wndpos_state;
 #if TEAMSTREAM
 static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
+static HWND m_bpi_btn , m_bpi_edit , m_bpm_btn , m_bpm_edit ;
 static HWND m_linkup_btn , m_teamstream_lbl , m_linkdn_btn ;
 #if TEAMSTREAM_W32_LISTVIEW
 static HWND m_interval_progress , m_links_listview , m_users_list , m_users_listbox ;
@@ -266,7 +267,7 @@ h = (4 * 13) + 6 ; // <- positioning needs some tlc
 	SetWindowPos(m_users_list , NULL , x , y , w , h , NULL) ;
 }
 
-void addToUsersListbox(char* username) // may not need
+void addToUsersListbox(char* username)
 {
 // trying to add/remove items to a listbox via chat msg would usually crash
 if (!m_users_listbox) TeamStream::CHAT("!m_links_listbox") ; else
@@ -279,16 +280,15 @@ for (int i = 0 ; i < 8 ; i++)
 //dbgListbox() ;
 }
 
-void removeFromUsersListbox(char* username) // may not need
+void removeFromUsersListbox(char* username)
 {
-/* trying to add/remove items to a listbox via chat msg would usually crash
-	int listIdx = SendMessage(m_links_listbox , LB_FINDSTRINGEXACT , -1 ,
+// trying to add/remove items to a listbox via chat msg would usually crash
+	int listIdx = SendMessage(m_users_listbox , LB_FINDSTRINGEXACT , -1 ,
 		reinterpret_cast<LPARAM>((LPCTSTR)username)) ;
-	if (listIdx != LB_ERR) SendMessage(m_links_listbox , LB_DELETESTRING , listIdx , 0) ;
+	if (listIdx != LB_ERR) SendMessage(m_users_listbox , LB_DELETESTRING , listIdx , 0) ;
 
 // TODO: also remove from listView if necessary (for the sake of ID_TEAMSTREAM_LOAD/SAVE this maybe all thats necessary when a user bails)
-dbgListbox(listIdx , username , "removed") ;
-*/
+//dbgListbox(listIdx , username , "removed") ;
 }
 
 BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam)
@@ -1152,11 +1152,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,LocalOuterChannelListProc);
         m_remwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,RemoteOuterChannelListProc);
-        
-#if TEAMSTREAM
-				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
 
+#if TEAMSTREAM
 				m_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; m_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
+
+				m_bpi_btn = GetDlgItem(hwndDlg , IDC_VOTEBPIBTN) ;
+				m_bpi_edit = GetDlgItem(hwndDlg , IDC_VOTEBPIEDIT) ;
+				m_bpm_btn = GetDlgItem(hwndDlg , IDC_VOTEBPMBTN) ;
+				m_bpm_edit = GetDlgItem(hwndDlg , IDC_VOTEBPMEDIT) ;
+
+				m_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
 
 				m_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
 				m_color_picker = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_COLORPICKER) , hwndDlg , ColorPickerProc) ;
@@ -1896,6 +1901,27 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					if (TeamStream::ShiftRemoteLinkIdx(USERID_LOCAL , (LOWORD(wParam) == IDC_LINKUP)))
 						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
         break ;
+
+				case IDC_VOTEBPIEDIT:
+				case IDC_VOTEBPMEDIT: if (HIWORD(wParam) != EN_CHANGE) break ;
+					{
+						HWND voteBtn = (LOWORD(wParam) == IDC_VOTEBPIEDIT)? m_bpi_btn : m_bpm_btn ;
+						char editText[4] ; int len = Edit_GetText((HWND)lParam , (LPTSTR)editText , 3) ;
+						EnableWindow(voteBtn , (len)) ;
+					}
+				break ;
+				case IDC_VOTEBPIBTN:
+				case IDC_VOTEBPMBTN:
+					{
+						bool isBpiOrBpmBtn = (LOWORD(wParam) == IDC_VOTEBPIBTN) ;
+						HWND editBox = (isBpiOrBpmBtn)? m_bpi_edit : m_bpm_edit ;
+						char* voteType = (isBpiOrBpmBtn)? "bpi" : "bpm" ;
+						char editText[4] ; Edit_GetText(editBox , (LPTSTR)editText , 4) ;
+						const int voteMsgLen = VOTE_CHAT_TRIGGER_LEN + 8 ;
+						char voteMsg[voteMsgLen] ; sprintf(voteMsg , "%s%s %s" , VOTE_CHAT_TRIGGER , voteType , editText) ;
+						SendChatMessage(voteMsg) ; Edit_SetText(editBox , (LPTSTR)"") ;
+					}
+				break ;
 #endif TEAMSTREAM
 			}
 		break;

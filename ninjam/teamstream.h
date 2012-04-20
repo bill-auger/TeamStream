@@ -102,6 +102,8 @@
 #define COLOR_CHAT_TRIGGER_LEN 7
 
 /* chat message defines */
+#define VOTE_CHAT_TRIGGER "!vote "
+#define VOTE_CHAT_TRIGGER_LEN 6
 #define TEAMSTREAM_CHAT_TRIGGER "!teamstream "
 #define TEAMSTREAM_CHAT_TRIGGER_LEN 12
 #define LINKS_CHAT_TRIGGER "!links "
