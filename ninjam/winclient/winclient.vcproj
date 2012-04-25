@@ -660,6 +660,10 @@
 							</FileConfiguration>
 						</File>
 						<File
+							RelativePath="..\..\WDL\jnetlib\httpget.cpp"
+							>
+						</File>
+						<File
 							RelativePath="..\..\WDL\jnetlib\listen.cpp"
 							>
 							<FileConfiguration
@@ -959,6 +963,10 @@
 			>
 			<File
 				RelativePath="..\chanmix.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\WDL\jnetlib\httpget.h"
 				>
 			</File>
 			<File

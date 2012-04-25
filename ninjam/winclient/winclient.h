@@ -68,4 +68,38 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms);
 int licensecallback(int user32, char *licensetext);
 void licenseRun(HWND hwndDlg);
 
+/* winclient.cpp TeamStream functions */
+// init
+void winInit() ;
+void initTeamStreamUser(HWND hwndDlg , bool isEnable) ;
+// web server requests
+void checkServerForUpdate() ;
+void processAppUpdate(char* updateUrl) ;
+// GUI helpers
+void setFocusChat() ;
+void setBpiBpmLabels(char* bpiString , char* bpmString) ;
+void setTeamStreamMenuItems() ;
+// GUI listView functions
+int getLinkIdxByBtnIdx(int btnIdx) ;
+int getBtnIdxByLinkIdx(int linkIdx) ;
+void initLinksListViewColumns() ;
+void getLinksListViewColumnText(int btnIdx , char* username , int buffSize) ;
+void setLinksListViewColumnText(int linkIdx , char* username) ;
+//void reorderLinksListViewColumns(int* order) ;
+void resetUsersListbox() ;
+void SetUsersListbox() ;
+void addToUsersListbox(char* username) ;
+void removeFromUsersListbox(char* username) ;
+// chat functions
+void clearChat() ;
+void SendChatMessage(char* chatMsg) ;
+void SendChatPvtMessage(char* destFullUserName , char* chatMsg) ;
+COLORREF getChatColor(int idx) ;
+// GUI functions
+void setTeamStreamModeGUI(int userId , bool isEnableTeamStream) ;
+void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx) ;
+// teamstream window procs
+BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
+BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
+
 #endif//_WINCLIENT_H_

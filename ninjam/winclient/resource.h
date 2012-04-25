@@ -160,10 +160,15 @@
 #define IDC_AGREE																4000
 #define IDC_AGREE_ALWAYS	            					4001
 
+// update popup
+#define IDD_UPDATE															5000
+#define IDC_UPDATELBL														5001
+
 // timers
-#define IDT_AUTO_JOIN_TIMER											5000
-#define IDT_LOCAL_USER_INIT_TIMER								5001
-#define IDT_LINKS_CHAT_TIMER										5002
+#define IDT_WIN_INIT_TIMER											10000
+#define IDT_AUTO_JOIN_TIMER											10001
+#define IDT_LOCAL_USER_INIT_TIMER								10002
+#define IDT_LINKS_CHAT_TIMER										10003
 
 // menu
 #define ID_FILE_CONNECT                         40001

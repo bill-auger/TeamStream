@@ -49,7 +49,7 @@ void handleTeamStreamMsg(char* fullUserName , char* username , char* msgIn , boo
 	bool isEnableTeamStream = !strcmp(msgIn + TEAMSTREAM_CHAT_TRIGGER_LEN , "enabled") ;
 	WDL_String msgOut ; msgOut.Set(username) ;
 	msgOut.Append((isEnableTeamStream)? " is in TeamStream mode" : " is in NinJam mode") ;
-	chat_addline("TeamStream" , msgOut.Get()) ;
+	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ;
 
 	int userId = TeamStream::AddUser(username , fullUserName) ; if (userId <= USERID_LOCAL) return ;
 
@@ -96,7 +96,7 @@ void handleLinksMsg(char* senderUsername , char* msgIn)
 			else TeamStream::Set_Link_GUI(USERID_NOBODY , username , linkIdx , N_LINKS) ;
 	}
 #if IS_CHAT_LINKS
-	chat_addline("TeamStream" , msgOut.Get()) ;
+	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ;
 #endif IS_CHAT_LINKS
 }
 
@@ -104,7 +104,7 @@ void handleVoteMsg(char* username , char* msgIn)
 {
 	WDL_String msgOut ; msgOut.Set("<") ; msgOut.Append(username) ;
 	msgOut.Append("> votes to set") ; msgOut.Append(msgIn + VOTE_CHAT_TRIGGER_LEN) ;
-	chat_addline("TeamStream" , msgOut.Get()) ; //TODO: make this prettier
+	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ; //TODO: make this prettier
 }
 
 bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)

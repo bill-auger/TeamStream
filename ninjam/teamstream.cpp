@@ -25,6 +25,45 @@
 using namespace std ;
 
 
+/* http helpers */
+
+string TeamStreamNet::HttpGetString(char* url)
+{
+#if UPDATE_CHECK
+	string resp("") ; char outBuff[MAX_HTTP_RESP_LEN] ; outBuff[0] = '\0' ; int st , len ;
+	if (!url || !strncmp(url , "https://" , 8)) return resp ;
+
+	char userAgent[64] ; sprintf(userAgent , "User-Agent:TeamStream v%s (Mozilla)" , VERSION) ;
+	JNL_HTTPGet get ; JNL::open_socketlib() ;
+  get.addheader(userAgent) ; get.addheader("Accept:*/*") ; get.connect(url) ;
+	while (1)
+	{
+		if ((st = get.run()) < 0) break ; // connection error?
+
+		if (get.get_status() > 0 && get.get_status() == 2)
+		{
+/* in case we need larger responses (not likely)
+			outBuff[0] = '\0' ; int totalLen = 0 ; int len ;
+      while ((len = get.bytes_available()) > 0)
+      {
+        char buf[4096] ; if (len > 4096) len = 4096 ; len = get.get_bytes(buf , len) ;
+				if ((totalLen += len) < MAX_HTTP_RESP_LEN) strncat(outBuff , buf , len) ;
+				else { strncat(outBuff , buf , len - (totalLen - MAX_HTTP_RESP_LEN) - 1) ; break ; }
+      }
+*/
+			if ((len = get.bytes_available()) > 0)
+			{
+        if (len >= MAX_HTTP_RESP_LEN) len = MAX_HTTP_RESP_LEN - 1 ;
+				get.get_bytes(outBuff , len) ; outBuff[len] = '\0' ;
+			}
+		}
+		if (st == 1) break ; // connection closed
+	}
+	JNL::close_socketlib() ; return resp += outBuff ;
+#endif UPDATE_CHECK
+}
+
+
 /* helpers */
 
 char* TeamStream::TrimUsername(char* username)
@@ -42,7 +81,7 @@ char* TeamStream::TrimUsername(char* username)
 WDL_String TeamStream::ParseCommandLineHost(LPSTR cmdParam)
 {
 	// parse first cmd line arg (e.g. ninjam://ninbot.com:2049)
-	WDL_String empty ; empty.Set("") ; if (!cmdParam[0]) return empty ;
+	WDL_String hostAndPort ; hostAndPort.Set("") ; if (!cmdParam[0]) return hostAndPort ;
 
 	int isQuoted = (int)(cmdParam[0] == '"') ;
 	char param[256] ; strncpy(param , cmdParam + isQuoted , 255) ; int len = strlen(param) ;
@@ -50,15 +89,16 @@ WDL_String TeamStream::ParseCommandLineHost(LPSTR cmdParam)
 	param[len - isQuoted - isSlash] = '\0' ;
 
 	// tokenize and validate
-	char* prot ; if (!(prot = strtok(param , ":")) || strcmp(prot , "ninjam")) return empty ;
+	char* prot = strtok(param , ":") ; if (!prot || strcmp(prot , "ninjam")) return hostAndPort ;
 
 	// validate host and port existance
-	WDL_String hostAndPort ; hostAndPort.Set(param + 9) ; char* host ; int port ;
+	hostAndPort.Set(param + 9) ; char* host ; int port ;
 	host = strtok(NULL , ":") ; char* p = strtok(NULL , ":") ; if (p) port = atoi(p) ;
 	if (host && strlen(host) > 2 && port >= MIN_PORT && port <= MAX_PORT)
-		host += 2 ; else return empty ; // strip leading slashes
+		host += 2 ; else return hostAndPort ; // strip leading slashes
 
-	return (ValidateHost(host , true))? hostAndPort : empty ;
+	// validate allowed host
+	if (!ValidateHost(host , true)) hostAndPort.Set(AUTOJOIN_FAIL) ; return hostAndPort ;
 }
 
 bool TeamStream::ValidateHost(char* host , bool isIncludeuserDefinedHosts)
@@ -98,8 +138,9 @@ string TeamStream::ReadTeamStreamConfigString(char* aKey , char* defVal)
 }
 
 
-/* TeamStream state */
-
+/* program state */
+bool TeamStream::IsFirstLogin() { return m_first_login ; }
+void TeamStream::SetFirstLogin() { m_first_login = true ; }
 void TeamStream::InitTeamStream()
 {
 	m_teamstream_users.Add(new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY)) ;
@@ -132,6 +173,18 @@ void TeamStream::ResetTeamStreamState()
 int TeamStream::GetNUsers() { return m_teamstream_users.GetSize() ; }
 
 int TeamStream::GetNRemoteUsers() { return m_teamstream_users.GetSize() - N_STATIC_USERS ; }
+
+int TeamStream::GetLowestVacantLinkIdx()
+{
+	int i = GetNUsers() ; bool linkIdxs[N_LINKS + 1] = { false } ;
+	while (i--) linkIdxs[m_teamstream_users.Get(i)->m_link_idx] = true ;
+	int linkIdx = 0 ; while (linkIdx < N_LINKS && linkIdxs[linkIdx]) ++linkIdx ;
+
+	return linkIdx ;
+}
+
+
+/* user creation/destruction/query */
 
 void TeamStream::AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName)
 {
@@ -213,19 +266,10 @@ char* TeamStream::GetUsernameByLinkIdx(int linkIdx)
 	return (i > -1)? aUser->m_name : USERNAME_NOBODY ;
 }
 
-int TeamStream::GetLowestVacantLinkIdx()
-{
-	int i = GetNUsers() ; bool linkIdxs[N_LINKS + 1] = { false } ;
-	while (i--) linkIdxs[m_teamstream_users.Get(i)->m_link_idx] = true ;
-	int linkIdx = 0 ; while (linkIdx < N_LINKS && linkIdxs[linkIdx]) ++linkIdx ;
-
-	return linkIdx ;
-}
-
 int TeamStream::GetChatColorIdxByName(char* username) { return GetChatColorIdx(GetUserIdByName(username)) ; }
 
 
-/* TeamStream user state functions */
+/* user state functions */
 
 void TeamStream::SetLink(int userId , char* username , int newLinkIdx , bool isClobber)
 {
@@ -264,25 +308,25 @@ void TeamStream::SetTeamStreamMode(int userId , bool isEnable)
 {
 	if (!IsUserIdReal(userId)) return ;
 
+	bool isEnabled = GetTeamStreamMode(userId) ;
+	if ((isEnable && isEnabled) || (!isEnable  && !isEnabled)) return ;
+
 	Set_TeamStream_Mode_GUI(userId , isEnable) ;
+	GetUserById(userId)->m_teamstream_enabled = isEnable ;
 
 	// if remote user
-	if (userId > USERID_LOCAL)
+	if (userId != USERID_LOCAL)
 	{
-		GetUserById(userId)->m_teamstream_enabled = isEnable ;
-		char* username = GetUserById(userId)->m_name ;
-		if (isEnable) Add_To_Users_Listbox(username) ;
-		else Remove_From_Users_Listbox(username) ;
+		if (isEnable) Add_To_Users_Listbox(GetUserById(userId)->m_name) ;
+		else Remove_From_Users_Listbox(GetUserById(userId)->m_name) ;
+		return ;
 	}
-	if (userId != USERID_LOCAL) return ;
 
 	// if local user
-	bool isEnabled = GetTeamStreamMode(USERID_LOCAL) ;
-	if ((isEnable && isEnabled) || (!isEnable  && !isEnabled)) return ;
 
 // TODO: if (mode) unsubscribe from non-teamstream peers and disable rcv checkbox
 //		else subscribe to non-teamstream peers and enable rcv checkbox
-	GetUserById(userId)->m_teamstream_enabled = isEnable ; SendTeamStreamChatMsg(false , NULL) ;
+	SendTeamStreamChatMsg(false , NULL) ;
 }
 
 int TeamStream::GetLinkIdx(int userId) { return GetUserById(userId)->m_link_idx ; }
@@ -355,12 +399,13 @@ void (*TeamStream::Clear_Chat)() = NULL ;
 
 /* private menbers */
 
-// TeamStream users array (private)
+// TeamStream users array
 WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
 TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
 
-// known hosts vector (private)
+// known hosts array
 string TeamStream::m_known_hosts[] = { KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER } ;
 
-// master enable/disable
+// program state flags
+bool TeamStream::m_first_login = true ;
 bool TeamStream::m_teamstream_enabled = false ;

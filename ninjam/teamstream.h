@@ -26,7 +26,7 @@
 
 // TODO:
 #define TEAMSTREAM 1
-#if TEAMSTREAM
+#if TEAMSTREAM // debug toggle features
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
@@ -34,13 +34,13 @@
 #define COLOR_CHAT 1 // optional
 #define IS_CHAT_LINKS 1
 #endif TEAMSTREAM
-#define UPDATE_CHECK 0
+
+#define UPDATE_CHECK 1
 #define AUTO_ACCEPT_LICENSE 1
 #define AUTO_JOIN 1
 #define CHAT_MUTEX_CENTRALIZED 1
 #define HORIZ_RESIZE 0 // buggy
 #define CLICKABLE_URLS_IN_CHAT 1
-
 
 /* TeamStream #defines */
 // NOTE: last on chain has no one to stream to and 2nd to last is not delayed so
@@ -48,10 +48,17 @@
 //		the deepest buffer is for final mix listen only (may not need)
 #define N_LINKS 8
 #define N_TEAMSTREAM_BUFFERS N_LINKS - 1
+#define VERSION "0.07.01"
+#define VERSION_FULL "0.07.01.teamstream"
 #define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
+#define MAX_HTTP_RESP_LEN 128
+#define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
+
 #define UPDATE_CHAT_MSG "An updated version of Ninjam TeamStream is available for download here --> " // 75 chars
+// TODO: we can maybe allow duplicates
 #define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
 #define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
+#define NON_TEAMSTREAM_SERVER_MSG "TeamStream mode is not available on this server"
 
 // static users #defines
 // USERID_NOBODY and USERID_LOCAL are semantical - the rest are primarily for chat colorong
@@ -78,7 +85,6 @@
 #define USERNAME_NOBODY "Nobody"
 #define LOCAL_USER_INIT_DELAY 1000 // for IDT_LOCAL_USER_INIT_TIMER
 
-
 /* config defines */
 #define MAX_CONFIG_STRING_LEN 2048
 #define TEAMSTREAM_CONFSEC "teamstream"
@@ -90,7 +96,6 @@
 #define ENABLED_CFG_KEY "teamstream_enabled"
 #define CHAT_COLOR_CFG_KEY "chat_color_idx"
 #define METROMUTE_CFG_KEY "metromute"
-
 
 /* chat color defines */
 #define N_CHAT_COLORS 18
@@ -125,6 +130,7 @@
 #define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
 #define MIN_PORT 2049
 #define MAX_PORT 2099
+#define AUTOJOIN_FAIL "fail"
 #define UNKNOWN_HOST_MSG "Sorry, the ninjam:// link that you clicked does not point to a known public server. If you would like to be able to auto-join this server; you must add it to your list of trusted servers in CONFIG (TODO:)."
 #define N_KNOWN_HOSTS 3
 #define KNOWN_HOST_NINJAM "ninjam.com"
@@ -139,11 +145,21 @@
 #include <string>
 #include "../WDL/ptrlist.h"
 #include "../WDL/string.h"
+#include "../WDL/jnetlib/jnetlib.h"
 
 
 /* TeamStream and TeamStreamUser class declarations */
 
 extern WDL_String g_ini_file ;
+
+class TeamStreamNet
+{
+	public:
+		TeamStreamNet() {}
+		~TeamStreamNet() {}
+
+		std::string HttpGetString(char* url) ;
+} ;
 
 class TeamStreamUser
 {
@@ -171,8 +187,8 @@ char* m_full_name ; // TODO: lose this (see AddUser() implementation)
 class TeamStream
 {
 	public:
-		TeamStream(void);
-		~TeamStream(void);
+		TeamStream(void) ;
+		~TeamStream(void) ;
 // dbg
 static void DBG(char* title , char* msg) { MessageBox(NULL , msg , title , MB_OK) ; }
 static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_full_name , msg) ; }
@@ -189,7 +205,12 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void WriteTeamStreamConfigInt(char* aKey , int anInt) ;
 		static std::string ReadTeamStreamConfigString(char* aKey , char* defVal) ;
 
-		// user creation/destruction/query
+		// http helpers
+		static std::string HttpGetString(char* url) ; // NOTE: does not handle https
+
+		// program state
+		static bool IsFirstLogin() ; // for program update chat msg
+		static void SetFirstLogin() ; // for program update chat msg
 		static void InitTeamStream() ;
 		static void BeginTeamStream(char* currHost , char* localUsername , int chatColorIdx , bool isEnable , char* fullUserName) ;
 		static bool GetTeamStreamState() ; // alias IsTeamStream()
@@ -197,6 +218,9 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void ResetTeamStreamState() ;
 		static int GetNUsers() ;
 		static int GetNRemoteUsers() ;
+		static int GetLowestVacantLinkIdx() ;
+
+		// user creation/destruction/query
 		static void AddLocalUser(char* username , int chatColorIdx , bool isEnable , char* fullUserName) ;
 		static int AddUser(char* username , char* fullUserName) ;
 		static void RemoveUser(char* fullUserName) ;
@@ -205,10 +229,9 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static TeamStreamUser* GetUserById(int userId) ;
 		static int GetUserIdByName(char* username) ;
 		static char* GetUsernameByLinkIdx(int linkIdx) ;
-		static int GetLowestVacantLinkIdx() ;
-		static int TeamStream::GetChatColorIdxByName(char* username) ;
+		static int GetChatColorIdxByName(char* username) ;
 
-		// TeamStream user state functions
+		// user state functions
 		static void SetLink(int userId , char* username , int linkIdx , bool isClobber) ;
 		static bool ShiftRemoteLinkIdx(int userId , bool isMoveUp) ;
 
@@ -246,10 +269,14 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void (*Clear_Chat)() ;
 
 	private:
+		// TeamStream users array
 		static WDL_PtrList<TeamStreamUser> m_teamstream_users ; static int m_next_id ;
 		static TeamStreamUser* TeamStream::m_bogus_user ;
+		// known hosts array
 		static std::string m_known_hosts[N_KNOWN_HOSTS] ;
-		static bool m_teamstream_enabled ; // master enable/disable
+		// program state flags
+		static bool m_first_login ; // for program update chat msg
+		static bool m_teamstream_enabled ; // enable TeamStream functionality
 } ;
 
 #endif _TEAMSTREAM_H_

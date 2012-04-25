@@ -634,6 +634,8 @@ void NJClient::Disconnect()
   _reinit();
 
 #if TEAMSTREAM
+	if (TeamStream::IsFirstLogin()) { TeamStream::SetFirstLogin() ; return ; }
+
 	TeamStream::ResetTeamStreamState() ;
 #if TEAMSTREAM_W32_LISTVIEW	
 	TeamStream::Reset_Users_Listbox() ;
