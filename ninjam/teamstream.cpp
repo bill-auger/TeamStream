@@ -29,7 +29,6 @@ using namespace std ;
 
 string TeamStreamNet::HttpGet(char* url)
 {
-#if UPDATE_CHECK
 	string resp("") ; char outBuff[MAX_HTTP_RESP_LEN] ; outBuff[0] = '\0' ; int st , len ;
 	if (!url || !strncmp(url , "https://" , 8)) return resp ;
 
@@ -60,7 +59,6 @@ string TeamStreamNet::HttpGet(char* url)
 		if (st == 1) break ; // connection closed
 	}
 	JNL::close_socketlib() ; return resp += outBuff ;
-#endif UPDATE_CHECK
 }
 
 #if HTTP_LISTENER
@@ -108,6 +106,23 @@ DWORD WINAPI TeamStreamNet::HttpListenThread(LPVOID p)
   }
   JNL::close_socketlib() ; return 0 ;
 }
+#else HTTP_LISTENER
+#if HTTP_POLL
+DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
+{
+	TeamStreamNet* net = new TeamStreamNet() ;
+	while (!g_done)
+	{
+		string respString = net->HttpGet(POLL_URL) ;
+
+char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ;
+TeamStream::CHAT(resp);
+
+		Sleep(5000) ;
+	}
+	return 0 ;
+}
+#endif HTTP_POLL
 #endif HTTP_LISTENER
 
 /* helpers */

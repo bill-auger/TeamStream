@@ -30,7 +30,8 @@
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
-#define HTTP_LISTENER 0
+#define HTTP_LISTENER 0 // mutually exclusive to HTTP_POLL
+#define HTTP_POLL 1 // mutually exclusive to HTTP_LISTENER
 #define TEAMSTREAM_W32_LISTVIEW 1 // optional // buggy
 #define COLOR_CHAT 1 // optional
 #define IS_CHAT_LINKS 1
@@ -52,6 +53,7 @@
 #define VERSION "0.07.01"
 #define VERSION_FULL "0.07.01.teamstream"
 #define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
+#define POLL_URL VERSION_CHECK_URL
 #define MAX_HTTP_RESP_LEN 128
 #define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
 
@@ -149,8 +151,8 @@
 #include "../WDL/jnetlib/jnetlib.h"
 
 /* globals */
-#if HTTP_LISTENER
-extern int g_done ; // for TeamStreamNet::HttpListenThread
+#if HTTP_LISTENER || HTTP_POLL
+extern int g_done ; // for TeamStreamNet::HttpListenThread or TeamStreamNet::HttpPollThread
 #endif HTTP_LISTENER
 
 
@@ -169,6 +171,10 @@ class TeamStreamNet
 #if HTTP_LISTENER
 // NOTE: to avoid firewall issues we most likely won't use this
 		static DWORD WINAPI HttpListenThread(LPVOID p) ;
+#else HTTP_LISTENER
+#if HTTP_POLL
+		static DWORD WINAPI HttpPollThread(LPVOID p) ;
+#endif HTTP_POLL
 #endif HTTP_LISTENER
 } ;
 

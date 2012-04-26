@@ -69,10 +69,18 @@ static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
 #if TEAMSTREAM
+#if HTTP_LISTENER
+static HANDLE g_listen_thread ;
+#else HTTP_LISTENER
+#if HTTP_POLL
+static HANDLE g_poll_thread ;
+#endif HTTP_POLL
+#endif HTTP_LISTENER
+
 static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
 static bool g_auto_join = false ;
-static HANDLE g_listen_thread ;
+
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
 static HWND g_color_picker_toggle , g_color_picker , g_color_btn_hwnds[N_CHAT_COLORS] ;
@@ -103,6 +111,10 @@ void winInit()
 {
 #if HTTP_LISTENER
 	g_listen_thread = CreateThread(NULL , 0 , TeamStreamNet::HttpListenThread , 0 , 0 , NULL) ;
+#else HTTP_LISTENER
+#if HTTP_POLL
+	g_poll_thread = CreateThread(NULL , 0 , TeamStreamNet::HttpPollThread , 0 , 0 , NULL) ;
+#endif HTTP_POLL
 #endif HTTP_LISTENER
 
 	TeamStream::InitTeamStream() ; checkServerForUpdate() ;
@@ -2046,9 +2058,13 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
       WaitForSingleObject(g_hThread,INFINITE);
       CloseHandle(g_hThread);
 
-			WaitForSingleObject(g_listen_thread , INFINITE) ;
-      CloseHandle(g_listen_thread) ;
-
+#if HTTP_LISTENER
+			WaitForSingleObject(g_listen_thread , INFINITE) ; CloseHandle(g_listen_thread) ;
+#else HTTP_LISTENER
+#if HTTP_POLL
+			WaitForSingleObject(g_poll_thread , INFINITE) ; CloseHandle(g_poll_thread) ;
+#endif HTTP_POLL
+#endif HTTP_LISTENER
       {
         int x;
         int cnt=0;
