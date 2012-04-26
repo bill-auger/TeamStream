@@ -69,6 +69,10 @@ static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
 #if TEAMSTREAM
+static bool g_is_logged_in = false ;
+static bool g_kick_duplicate_username = true ;
+static bool g_auto_join = false ;
+static HANDLE g_listen_thread ;
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
 static HWND g_color_picker_toggle , g_color_picker , g_color_btn_hwnds[N_CHAT_COLORS] ;
@@ -80,9 +84,6 @@ static HWND g_update_popup ;
 static HWND g_interval_progress , g_links_listview , g_users_list , g_users_listbox ;
 static int g_curr_btn_idx ;
 #endif TEAMSTREAM_W32_LISTVIEW
-static bool g_is_logged_in = false ;
-static bool g_kick_duplicate_username = true ;
-static bool g_auto_join = false ;
 
 
 // chat colors
@@ -98,7 +99,14 @@ int g_color_btn_ids[N_CHAT_COLORS] =
 
 /* init */
 
-void winInit() { TeamStream::InitTeamStream() ; checkServerForUpdate() ; }
+void winInit()
+{
+#if HTTP_LISTENER
+	g_listen_thread = CreateThread(NULL , 0 , TeamStreamNet::HttpListenThread , 0 , 0 , NULL) ;
+#endif HTTP_LISTENER
+
+	TeamStream::InitTeamStream() ; checkServerForUpdate() ;
+}
 
 void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 {
@@ -140,7 +148,7 @@ void checkServerForUpdate()
 {
 #if UPDATE_CHECK
 	TeamStreamNet* net = new TeamStreamNet() ;
-	string respString = net->HttpGetString(VERSION_CHECK_URL) ;
+	string respString = net->HttpGet(VERSION_CHECK_URL) ;
 	char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ;
 	if (!strlen(resp) || resp[0] == '.' || strstr(resp , "..")) return ;
 
@@ -1483,8 +1491,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 #if TEAMSTREAM
 			else if (wParam == IDT_WIN_INIT_TIMER)
 			{
-				KillTimer(hwndDlg , IDT_WIN_INIT_TIMER) ; winInit() ;
-ShowWindow(g_update_popup , SW_HIDE) ;
+				KillTimer(hwndDlg , IDT_WIN_INIT_TIMER) ;
+				winInit() ; DestroyWindow(g_update_popup) ;
 				if (g_auto_join) SetTimer(g_hwnd , IDT_AUTO_JOIN_TIMER , AUTO_JOIN_DELAY , NULL) ;
 			}
 #endif TEAMSTREAM
@@ -2038,6 +2046,9 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
       WaitForSingleObject(g_hThread,INFINITE);
       CloseHandle(g_hThread);
 
+			WaitForSingleObject(g_listen_thread , INFINITE) ;
+      CloseHandle(g_listen_thread) ;
+
       {
         int x;
         int cnt=0;
@@ -2244,8 +2255,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 		else { g_connect_host.Set(host) ; g_auto_join = true ; }
 #endif AUTO_JOIN
 
-	ShowWindow(g_update_popup , SW_SHOW) ;
 // TODO: SetWindowPos(g_update_popup , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
+	ShowWindow(g_update_popup , SW_SHOW) ;
 	SetTimer(g_hwnd , IDT_WIN_INIT_TIMER , WIN_INIT_DELAY , NULL) ;
 #endif TEAMSTREAM
   MSG msg;

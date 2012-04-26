@@ -30,6 +30,7 @@
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
+#define HTTP_LISTENER 0
 #define TEAMSTREAM_W32_LISTVIEW 1 // optional // buggy
 #define COLOR_CHAT 1 // optional
 #define IS_CHAT_LINKS 1
@@ -147,6 +148,11 @@
 #include "../WDL/string.h"
 #include "../WDL/jnetlib/jnetlib.h"
 
+/* globals */
+#if HTTP_LISTENER
+extern int g_done ; // for TeamStreamNet::HttpListenThread
+#endif HTTP_LISTENER
+
 
 /* TeamStream and TeamStreamUser class declarations */
 
@@ -158,7 +164,12 @@ class TeamStreamNet
 		TeamStreamNet() {}
 		~TeamStreamNet() {}
 
-		std::string HttpGetString(char* url) ;
+		std::string HttpGet(char* url) ;
+
+#if HTTP_LISTENER
+// NOTE: to avoid firewall issues we most likely won't use this
+		static DWORD WINAPI HttpListenThread(LPVOID p) ;
+#endif HTTP_LISTENER
 } ;
 
 class TeamStreamUser

@@ -664,6 +664,10 @@
 							>
 						</File>
 						<File
+							RelativePath="..\..\WDL\jnetlib\httpserv.cpp"
+							>
+						</File>
+						<File
 							RelativePath="..\..\WDL\jnetlib\listen.cpp"
 							>
 							<FileConfiguration
@@ -967,6 +971,14 @@
 			</File>
 			<File
 				RelativePath="..\..\WDL\jnetlib\httpget.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\WDL\jnetlib\httpserv.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\WDL\jnetlib\listen.h"
 				>
 			</File>
 			<File

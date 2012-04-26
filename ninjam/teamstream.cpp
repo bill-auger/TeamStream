@@ -27,7 +27,7 @@ using namespace std ;
 
 /* http helpers */
 
-string TeamStreamNet::HttpGetString(char* url)
+string TeamStreamNet::HttpGet(char* url)
 {
 #if UPDATE_CHECK
 	string resp("") ; char outBuff[MAX_HTTP_RESP_LEN] ; outBuff[0] = '\0' ; int st , len ;
@@ -63,6 +63,52 @@ string TeamStreamNet::HttpGetString(char* url)
 #endif UPDATE_CHECK
 }
 
+#if HTTP_LISTENER
+DWORD WINAPI TeamStreamNet::HttpListenThread(LPVOID p)
+{
+  JNL_HTTPServ *cons[32] = { 0 , } ; char *contents[32] = { 0 , } ; int n_cons=0 ;
+  JNL::open_socketlib() ; JNL_AsyncDNS dns ; JNL_Listen l(8000) ;
+  while (!l.is_error() && !g_done)
+  {
+    if (n_cons < 32)
+    {
+      JNL_Connection *con = l.get_connect() ;
+      if (con)
+        for (int x = 0 ; x < 32 ; ++x)
+          if (!cons[x]) { cons[x] = new JNL_HTTPServ(con) ; ++n_cons ; break ; }
+    }
+
+    for (int x = 0 ; x < 32 ; ++x)
+      if (cons[x])
+        switch (cons[x]->run())
+				{
+					case -1:  case 4:
+						delete cons[x] ; cons[x] = 0 ; free(contents[x]) ; contents[x] = 0 ; --n_cons ;
+					break ;
+					case 2:
+					{
+						cons[x]->set_reply_string("HTTP/1.1 200 OK") ;
+						cons[x]->set_reply_header("Content-type:text/plain") ;
+						cons[x]->set_reply_header("Server:JNLTest") ;
+						contents[x] = (char*)malloc(32768) ;
+						char* aParam = cons[x]->get_request_parm("param") ;
+						sprintf(contents[x] , "resp\r\nparam=%s\r\n\r\n" , (aParam)? aParam : "no param") ;
+						cons[x]->send_reply() ;
+					}
+					break ;
+					case 3:
+						if (contents[x] && cons[x]->bytes_cansend() > strlen(contents[x]))
+						{
+							cons[x]->write_bytes(contents[x] , strlen(contents[x])) ;
+							cons[x]->close(0) ; free(contents[x]) ; contents[x] = 0 ;
+						}
+					break ;
+				}
+		Sleep(100) ;
+  }
+  JNL::close_socketlib() ; return 0 ;
+}
+#endif HTTP_LISTENER
 
 /* helpers */
 
