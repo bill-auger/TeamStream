@@ -83,7 +83,7 @@ static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
 static bool g_auto_join = false ;
 
-static set<HWND> g_server_btns ;
+static string g_fav_jam_1 , g_fav_jam_2 , g_fav_jam_3 ; static set<HWND> g_server_btns ;
 
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
@@ -638,6 +638,15 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
         }
         else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
 
+				// populate default quick login buttons
+				HWND favBtn1 = GetDlgItem(hwndDlg , IDC_FAVBTN1) ;
+				HWND favBtn2 = GetDlgItem(hwndDlg , IDC_FAVBTN2) ;
+				HWND favBtn3 = GetDlgItem(hwndDlg , IDC_FAVBTN3) ;
+				g_server_btns.empty() ;
+				g_server_btns.insert(favBtn1) ; SetWindowText(favBtn1 , g_fav_jam_1.c_str()) ;
+				g_server_btns.insert(favBtn2) ; SetWindowText(favBtn2 , g_fav_jam_2.c_str()) ;
+				g_server_btns.insert(favBtn3) ; SetWindowText(favBtn3 , g_fav_jam_3.c_str()) ;
+
 #if GET_LIVE_JAMS
 // TODO: this blocks user input - (spawn a thread instead of a timer?)
 				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching ....") ;
@@ -658,12 +667,6 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 
 //string csv = net->HttpGet(LIVE_JAMS_URL) ; istringstream ssCsv(csv) ; // DEBUG check resp
 //istringstream ssCsv("ninbot.com:2052,gnorf76,anon,DirtyDeeds,\nninbot.com:2051,JooZz,\nninjamer.com:2052,weebly,meiko,nik,gkouthegreek,") ; // DEBUG mock
-
-				// populate default quick login buttons
-				g_server_btns.empty() ;
-				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN1)) ;
-				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN2)) ;
-				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN3)) ;
 
 				// map dialog units to pixels for new buttons
 				RECT r ; r.left = 10 ; r.top = 84 ; r.right = 88 ; r.bottom = 96 ; MapDialogRect(hwndDlg , &r) ;
@@ -1853,6 +1856,24 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             do_connect();
           }
         break;
+
+				case ID_FAVORITES_SEND_EMAIL:
+				break ;
+				case ID_FAVORITES_SAVE_SHORTCUT:
+				break ;
+				case ID_FAVORITES_SAVE1:
+					g_fav_jam_1 = g_connect_host.Get() ;
+					TeamStream::WriteTeamStreamConfigString("fav_jam_1" , g_connect_host.Get()) ;
+				break ;
+				case ID_FAVORITES_SAVE2:
+					g_fav_jam_2 = g_connect_host.Get() ;
+					TeamStream::WriteTeamStreamConfigString("fav_jam_2" , g_connect_host.Get()) ;
+				break ;
+				case ID_FAVORITES_SAVE3:
+					g_fav_jam_3 = g_connect_host.Get() ;
+					TeamStream::WriteTeamStreamConfigString("fav_jam_3" , g_connect_host.Get()) ;
+				break ;
+
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
         break;
@@ -2307,6 +2328,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_pass.Set(buf);
     g_connect_passremember=GetPrivateProfileInt(CONFSEC,"passrem",1,g_ini_file.Get());
     g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
+
+		g_fav_jam_1 = TeamStream::ReadTeamStreamConfigString("fav_jam_1" , "Favorite 1") ;
+		g_fav_jam_2 = TeamStream::ReadTeamStreamConfigString("fav_jam_2" , "Favorite 2") ;
+		g_fav_jam_3 = TeamStream::ReadTeamStreamConfigString("fav_jam_3" , "Favorite 3") ;
   }
 
   { // load richedit DLL

@@ -179,16 +179,20 @@
 #define IDT_GET_LIVE_JAMS_TIMER									10003
 #define IDT_LINKS_CHAT_TIMER										10004
 
-// menu
-#define ID_FILE_CONNECT                         40001
-#define ID_FILE_DISCONNECT                      40002
-#define ID_FILE_QUIT                            40003
-#define ID_HELP_ABOUT                           40004
-#define ID_OPTIONS_PREFERENCES                  40005
-#define ID_OPTIONS_AUDIOCONFIGURATION           40007
+// menu items
+#define ID_FILE_CONNECT                         40000
+#define ID_FILE_DISCONNECT                      40001
+#define ID_FILE_QUIT                            40002
+#define ID_TEAMSTREAM_ON												41003
+#define ID_TEAMSTREAM_OFF												41004
+#define ID_TEAMSTREAM_LOAD											41005
+#define ID_TEAMSTREAM_SAVE											41006
+#define ID_FAVORITES_SEND_EMAIL									41007
+#define ID_FAVORITES_SAVE_SHORTCUT							41008
+#define ID_FAVORITES_SAVE1											41009
+#define ID_FAVORITES_SAVE2											41010
+#define ID_FAVORITES_SAVE3											41011
+#define ID_OPTIONS_PREFERENCES                  40012
+#define ID_OPTIONS_AUDIOCONFIGURATION           40013
+#define ID_HELP_ABOUT                           40014
 
-// TeamStream menu items
-#define ID_TEAMSTREAM_ON												41000
-#define ID_TEAMSTREAM_OFF												41001
-#define ID_TEAMSTREAM_LOAD											41002
-#define ID_TEAMSTREAM_SAVE											41003

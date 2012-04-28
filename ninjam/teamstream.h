@@ -233,6 +233,7 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static int ReadTeamStreamConfigInt(char* aKey , int defVal) ;
 		static void WriteTeamStreamConfigInt(char* aKey , int anInt) ;
 		static std::string ReadTeamStreamConfigString(char* aKey , char* defVal) ;
+		static void WriteTeamStreamConfigString(char* aKey , char* aString) ;
 
 		// http helpers
 		static std::string HttpGetString(char* url) ; // NOTE: does not handle https

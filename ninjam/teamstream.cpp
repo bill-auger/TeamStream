@@ -192,6 +192,9 @@ string TeamStream::ReadTeamStreamConfigString(char* aKey , char* defVal)
 	return string(buff) ;
 }
 
+void TeamStream::WriteTeamStreamConfigString(char* aKey , char* aString)
+	{ WritePrivateProfileString(TEAMSTREAM_CONFSEC , aKey , aString , g_ini_file.Get()) ; }
+
 
 /* program state */
 bool TeamStream::IsFirstLogin() { return m_first_login ; }
