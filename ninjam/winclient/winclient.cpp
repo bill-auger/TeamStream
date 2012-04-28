@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <string>
+#include <sstream>
+#include <set>
 
 #include "resource.h"
 
@@ -80,6 +82,8 @@ static HANDLE g_poll_thread ;
 static bool g_is_logged_in = false ;
 static bool g_kick_duplicate_username = true ;
 static bool g_auto_join = false ;
+
+static set<HWND> g_server_btns ;
 
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
@@ -161,7 +165,7 @@ void checkServerForUpdate()
 #if UPDATE_CHECK
 	TeamStreamNet* net = new TeamStreamNet() ;
 	string respString = net->HttpGet(VERSION_CHECK_URL) ;
-	char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ;
+	char resp[HTTP_RESP_BUFF_SIZE] ; strcpy(resp , respString.c_str()) ;
 	if (!strlen(resp) || resp[0] == '.' || strstr(resp , "..")) return ;
 
 	char currentVersion[] = VERSION ; char *major , *minor , *rev ;
@@ -633,10 +637,107 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
         }
         else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
+
+#if GET_LIVE_JAMS
+// TODO: this blocks user input - (spawn a thread instead of a timer?)
+				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching ....") ;
+				SetTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER , GET_LIVE_JAMS_DELAY , NULL) ;
+#endif GET_LIVE_JAMS
       }
     return 0;
 
+#if GET_LIVE_JAMS
+		case WM_TIMER:
+			if (wParam == IDT_GET_LIVE_JAMS_TIMER)
+			{
+				KillTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER) ;
+
+				// get list of live rooms from the webserver
+				TeamStreamNet* net = new TeamStreamNet ;
+				istringstream ssCsv(net->HttpGet(LIVE_JAMS_URL)) ;
+
+//string csv = net->HttpGet(LIVE_JAMS_URL) ; istringstream ssCsv(csv) ; // DEBUG check resp
+//istringstream ssCsv("ninbot.com:2052,gnorf76,anon,DirtyDeeds,\nninbot.com:2051,JooZz,\nninjamer.com:2052,weebly,meiko,nik,gkouthegreek,") ; // DEBUG mock
+
+				// populate default quick login buttons
+				g_server_btns.empty() ;
+				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN1)) ;
+				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN2)) ;
+				g_server_btns.insert(GetDlgItem(hwndDlg , IDC_FAVBTN3)) ;
+
+				// map dialog units to pixels for new buttons
+				RECT r ; r.left = 10 ; r.top = 84 ; r.right = 88 ; r.bottom = 96 ; MapDialogRect(hwndDlg , &r) ;
+				int btnX = r.left ; int btnY = r.top ; int btnW = r.right - r.left ; int btnH = r.bottom - r.top ;
+				r.left = 94 ; r.top = 2 ; r.right = 248 ; r.bottom = 10 ; MapDialogRect(hwndDlg , &r) ;
+				int lblX = r.left ; int lblY = r.top ; int lblW = r.right - r.left ; int lblH = r.bottom - r.top ;
+				HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT) ; int nServers = 0 ; string line ;
+
+				// add live jam quick login buttons
+				while (getline(ssCsv , line))
+				{
+					int y = btnY + (btnH * nServers++) ;
+					istringstream ssLine(line) ; string server ; getline(ssLine , server , ',') ; 
+					string usersCsv ; getline(ssLine , usersCsv) ; istringstream ssUsers(usersCsv) ;
+					string user ; short n = 0 ; while (getline(ssUsers , user , ',')) ++n ;
+					char users[1024] ; sprintf(users , "%d jammers: " , n) ; strncat(users , usersCsv.c_str() , 1000) ;
+
+					// quick login button
+					HWND serverBtn = CreateWindow("BUTTON" , server.c_str() ,
+						WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WM_SETFONT ,
+						btnX , y , btnW , btnH , hwndDlg , (HMENU)IDC_LIVEBTN , g_hInst , NULL) ;
+					SendMessage(serverBtn , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
+					g_server_btns.insert(serverBtn) ;
+					// users list
+					HWND serverLbl = CreateWindow("STATIC" , users ,
+						WS_VISIBLE | WS_CHILD | SS_LEFT | SS_WORDELLIPSIS ,
+						lblX , y + lblY , lblW , lblH , hwndDlg , (HMENU)IDC_LIVELBL , g_hInst , NULL) ;
+					SendMessage(serverLbl , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
+				}
+
+				// print labels
+				char grpLbl[32] = "No" ; if (nServers) sprintf(grpLbl , "%d" , nServers) ;
+				strcat(grpLbl , " Live Jam") ; if (nServers != 1) strcat(grpLbl , "s") ;
+				SetDlgItemText(hwndDlg , IDC_LIVEGRP , grpLbl) ;
+				SetDlgItemText(hwndDlg , IDC_LIVELBL , "None") ; // covered if (nServers)
+				if (nServers < 2) break ;
+
+				// shift 'Connect' and 'Cancel' buttons and resize groupbox and connect dialog 
+				// NOTE: we initially accommodate one button so grow only nServers - 1 button heights
+				int growH = (btnH * (nServers - 1)) ;
+				// map the new x and y of the 'Connect' (left/top) and 'Cancel' (right/bottom) buttons
+				r.left = 148 ; r.top = 108 ; r.right = 204 ; r.bottom = 108 ; MapDialogRect(hwndDlg , &r) ;
+				int connectX = r.left ; int connectY = r.top ; int cancelX = r.right ; int cancelY = r.bottom ;
+				HWND liveConnectHwnd = GetDlgItem(hwndDlg , IDC_CONNECT) ;
+				SetWindowPos(liveConnectHwnd , NULL , connectX , connectY + growH , 0 , 0 , SWP_NOSIZE) ;
+				HWND liveCancelHwnd = GetDlgItem(hwndDlg , IDC_CANCEL) ;
+				SetWindowPos(liveCancelHwnd , NULL , cancelX , cancelY + growH , 0 , 0 , SWP_NOSIZE) ;
+				// map the new dimensions of the groupbox
+				r.left = 250  ; r.top = 28 ; MapDialogRect(hwndDlg , &r) ; int grpW = r.left ; int grpH = r.top ;
+				HWND liveGrpHwnd = GetDlgItem(hwndDlg , IDC_LIVEGRP) ;
+				SetWindowPos(liveGrpHwnd , NULL , 0 , 0 , grpW , grpH + growH , SWP_NOMOVE) ;
+				// map the new dimensions of the connect dialog
+				GetWindowRect(hwndDlg , &r) ; int dlgW = r.right - r.left ; int dlgH = r.bottom - r.top ;
+				SetWindowPos(hwndDlg , NULL , 0 , 0 , dlgW , dlgH + growH , SWP_NOMOVE) ;
+			}
+		break ;
+#endif GET_LIVE_JAMS
+
     case WM_COMMAND:
+#if GET_LIVE_JAMS
+			{
+				HWND quickLoginBtnHwnd = (HWND)lParam ;
+				if (g_server_btns.find(quickLoginBtnHwnd) != g_server_btns.end())
+				{
+					char host[256] ; GetWindowText(quickLoginBtnHwnd , host , 256) ;
+					if (!strncmp(host , "Favorite" , 8)) return 0 ;
+
+					SetDlgItemText(hwndDlg , IDC_HOST , host) ;
+					SendMessage(hwndDlg , WM_COMMAND , (WPARAM)IDC_CONNECT , 0) ;
+					return 0 ;
+				}
+			}
+#endif GET_LIVE_JAMS
+
       switch (LOWORD(wParam))
       {
         case IDC_ANON:
@@ -654,7 +755,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           }
         break;
 
-        case IDOK:
+        case IDC_CONNECT:
           {
             g_connect_passremember=!!IsDlgButtonChecked(hwndDlg,IDC_PASSREMEMBER);
             g_connect_anon=!!IsDlgButtonChecked(hwndDlg,IDC_ANON);
@@ -690,7 +791,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
             EndDialog(hwndDlg,1);
           }
         break;
-        case IDCANCEL:
+        case IDC_CANCEL:
           EndDialog(hwndDlg,0);
         break;
       }

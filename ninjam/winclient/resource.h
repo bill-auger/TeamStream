@@ -20,12 +20,9 @@
 #define IDC_FX                                  11
 #define IDC_FXCFG                               12
 #define IDC_USERGRP                             13
-#define IDC_ANON                                14
+
 #define IDD_LOGIN_CANCEL                       15
 #define IDD_CFG_CHANNEL                        16
-//#define IDC_AUTO_LOGIN                         13
-
-
 #define IDD_MAIN                                101
 #define IDD_CONFIG                              102
 #define IDR_MENU1                               102
@@ -79,11 +76,7 @@
 #define IDC_CHATDISP                            1017
 #define IDC_CHATENT                             1018
 #define IDC_LOCRECT                             1021
-#define IDC_PASSLBL                             1022
 #define IDC_REMOTERECT                          1022
-#define IDC_PASS                                1023
-#define IDC_USER                                1024
-#define IDC_HOST                                1025
 #define IDC_CHATOK                              1026
 #define IDC_STATUS2                             1028
 #define IDC_LICENSETEXT                         1029
@@ -110,7 +103,6 @@
 #define IDC_VER                                 1057
 #define IDC_LABEL                               1058
 #define IDC_LABEL2                              1059
-#define IDC_PASSREMEMBER                        1061
 #define IDC_DIV                                 1062
 
 #define IDC_DIV0                                1063
@@ -164,11 +156,28 @@
 #define IDD_UPDATE															5000
 #define IDC_UPDATELBL														5001
 
+// connect dialog
+#define IDC_USER                                6000
+#define IDC_HOST                                6001
+#define IDC_PASSLBL                             6002
+#define IDC_PASS                                6003
+#define IDC_PASSREMEMBER                        6004
+#define IDC_ANON                                6005
+#define IDC_FAVBTN1															6006
+#define IDC_FAVBTN2															6007
+#define IDC_FAVBTN3															6008
+#define IDC_LIVEGRP															6009
+#define IDC_LIVELBL															6010
+#define IDC_LIVEBTN															6011
+#define IDC_CONNECT															6012
+#define IDC_CANCEL															6013		
+
 // timers
 #define IDT_WIN_INIT_TIMER											10000
 #define IDT_AUTO_JOIN_TIMER											10001
 #define IDT_LOCAL_USER_INIT_TIMER								10002
-#define IDT_LINKS_CHAT_TIMER										10003
+#define IDT_GET_LIVE_JAMS_TIMER									10003
+#define IDT_LINKS_CHAT_TIMER										10004
 
 // menu
 #define ID_FILE_CONNECT                         40001

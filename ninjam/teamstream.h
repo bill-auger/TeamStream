@@ -37,9 +37,13 @@
 #define IS_CHAT_LINKS 1
 #endif TEAMSTREAM
 
+#if HTTP_LISTENER || HTTP_POLL
 #define UPDATE_CHECK 1
+#define GET_LIVE_JAMS 1
+#endif HTTP_LISTENER || HTTP_POLL
+
 #define AUTO_ACCEPT_LICENSE 1
-#define AUTO_JOIN 1
+#define AUTO_JOIN 0
 #define CHAT_MUTEX_CENTRALIZED 1
 #define HORIZ_RESIZE 0 // buggy
 #define CLICKABLE_URLS_IN_CHAT 1
@@ -52,16 +56,6 @@
 #define N_TEAMSTREAM_BUFFERS N_LINKS - 1
 #define VERSION "0.07.01"
 #define VERSION_FULL "0.07.01.teamstream"
-#define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
-#define POLL_URL VERSION_CHECK_URL
-#define MAX_HTTP_RESP_LEN 128
-#define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
-
-#define UPDATE_CHAT_MSG "An updated version of Ninjam TeamStream is available for download here --> " // 75 chars
-// TODO: we can maybe allow duplicates
-#define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
-#define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
-#define NON_TEAMSTREAM_SERVER_MSG "TeamStream mode is not available on this server"
 
 // static users #defines
 // USERID_NOBODY and USERID_LOCAL are semantical - the rest are primarily for chat colorong
@@ -81,12 +75,11 @@
 #define USERNAME_NINBOT "ninbot"
 #define USERID_JAMBOT -5									// phantom 'Jambot' chat user
 #define USERNAME_JAMBOT "Jambot"
-#define USERID_NOBODY -4									// phantom 'Nobody' TeamStream user
+#define USERID_NOBODY -6									// phantom 'Nobody' TeamStream user
 #define USERNAME_NOBODY "Nobody"
 */
 #define USERID_NOBODY -4				// phantom 'Nobody' TeamStream user
 #define USERNAME_NOBODY "Nobody"
-#define LOCAL_USER_INIT_DELAY 1000 // for IDT_LOCAL_USER_INIT_TIMER
 
 /* config defines */
 #define MAX_CONFIG_STRING_LEN 2048
@@ -120,7 +113,6 @@
 #define LINKS_CHAT_TRIGGER_LEN 7
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
-#define LINKS_CHAT_DELAY 1000 // for IDT_LINKS_CHAT_TIMER
 
 /* license.cpp includes */
 //#include <string>
@@ -130,15 +122,35 @@
 //#include <string>
 
 /* known hosts */
-#define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
+#define AUTOJOIN_FAIL "fail"
 #define MIN_PORT 2049
 #define MAX_PORT 2099
-#define AUTOJOIN_FAIL "fail"
 #define UNKNOWN_HOST_MSG "Sorry, the ninjam:// link that you clicked does not point to a known public server. If you would like to be able to auto-join this server; you must add it to your list of trusted servers in CONFIG (TODO:)."
 #define N_KNOWN_HOSTS 3
 #define KNOWN_HOST_NINJAM "ninjam.com"
 #define KNOWN_HOST_NINBOT "ninbot.com"
 #define KNOWN_HOST_NINJAMER "ninjamer.com"
+
+/* http requests */
+#define HTTP_RESP_BUFF_SIZE 4096
+#define HTTP_READ_BUFF_SIZE 256
+#define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
+#define LIVE_JAMS_URL "http://teamstream.heroku.com/servers.text"
+#define POLL_URL VERSION_CHECK_URL
+
+/* timers */
+#define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
+#define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
+#define LOCAL_USER_INIT_DELAY 1000 // for IDT_LOCAL_USER_INIT_TIMER
+#define GET_LIVE_JAMS_DELAY 1000 // for IDT_GET_LIVE_JAMS_TIMER
+#define LINKS_CHAT_DELAY 1000 // for IDT_LINKS_CHAT_TIMER
+
+/* status/error messages */
+#define UPDATE_CHAT_MSG "An updated version of Ninjam TeamStream is available for download here --> " // 75 chars
+// TODO: we can maybe allow duplicates
+#define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
+#define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
+#define NON_TEAMSTREAM_SERVER_MSG "TeamStream mode is not available on this server"
 
 /* aliasses */
 #define IsTeamStream GetTeamStreamState
@@ -153,7 +165,7 @@
 /* globals */
 #if HTTP_LISTENER || HTTP_POLL
 extern int g_done ; // for TeamStreamNet::HttpListenThread or TeamStreamNet::HttpPollThread
-#endif HTTP_LISTENER
+#endif HTTP_LISTENER || HTTP_POLL
 
 
 /* TeamStream and TeamStreamUser class declarations */

@@ -29,32 +29,27 @@ using namespace std ;
 
 string TeamStreamNet::HttpGet(char* url)
 {
-	string resp("") ; char outBuff[MAX_HTTP_RESP_LEN] ; outBuff[0] = '\0' ; int st , len ;
+	string resp("") ; char outBuff[HTTP_RESP_BUFF_SIZE] ; outBuff[0] = '\0' ; int st , len ;
 	if (!url || !strncmp(url , "https://" , 8)) return resp ;
 
 	char userAgent[64] ; sprintf(userAgent , "User-Agent:TeamStream v%s (Mozilla)" , VERSION) ;
 	JNL_HTTPGet get ; JNL::open_socketlib() ;
   get.addheader(userAgent) ; get.addheader("Accept:*/*") ; get.connect(url) ;
-	while (1)
+	while (true)
 	{
 		if ((st = get.run()) < 0) break ; // connection error?
 
 		if (get.get_status() > 0 && get.get_status() == 2)
 		{
-/* in case we need larger responses (not likely)
-			outBuff[0] = '\0' ; int totalLen = 0 ; int len ;
+// in case we need larger responses (not likely)
+			int totalLen = 0 ; int len ;
       while ((len = get.bytes_available()) > 0)
       {
-        char buf[4096] ; if (len > 4096) len = 4096 ; len = get.get_bytes(buf , len) ;
-				if ((totalLen += len) < MAX_HTTP_RESP_LEN) strncat(outBuff , buf , len) ;
-				else { strncat(outBuff , buf , len - (totalLen - MAX_HTTP_RESP_LEN) - 1) ; break ; }
+        char buf[HTTP_READ_BUFF_SIZE] ; if (len > HTTP_READ_BUFF_SIZE) len = HTTP_READ_BUFF_SIZE ;
+				len = get.get_bytes(buf , len) ;
+				if ((totalLen += len) < HTTP_RESP_BUFF_SIZE) strncat(outBuff , buf , len) ;
+				else { strncat(outBuff , buf , len - (totalLen - HTTP_RESP_BUFF_SIZE) - 1) ; break ; }
       }
-*/
-			if ((len = get.bytes_available()) > 0)
-			{
-        if (len >= MAX_HTTP_RESP_LEN) len = MAX_HTTP_RESP_LEN - 1 ;
-				get.get_bytes(outBuff , len) ; outBuff[len] = '\0' ;
-			}
 		}
 		if (st == 1) break ; // connection closed
 	}
@@ -115,8 +110,7 @@ DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
 	{
 		string respString = net->HttpGet(POLL_URL) ;
 
-char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ;
-TeamStream::CHAT(resp);
+//char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ; TeamStream::CHAT(resp);
 
 		Sleep(5000) ;
 	}
@@ -201,7 +195,7 @@ string TeamStream::ReadTeamStreamConfigString(char* aKey , char* defVal)
 
 /* program state */
 bool TeamStream::IsFirstLogin() { return m_first_login ; }
-void TeamStream::SetFirstLogin() { m_first_login = true ; }
+void TeamStream::SetFirstLogin() { m_first_login = false ; }
 void TeamStream::InitTeamStream()
 {
 	m_teamstream_users.Add(new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY)) ;
