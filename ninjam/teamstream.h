@@ -24,9 +24,9 @@
 #ifndef _TEAMSTREAM_H_
 #define _TEAMSTREAM_H_
 
-// TODO:
 #define TEAMSTREAM 1
-#if TEAMSTREAM // debug toggle features
+// debug toggle features
+#if TEAMSTREAM
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
 #define TEAMSTREAM_AUDIO 0
@@ -43,7 +43,7 @@
 #endif HTTP_LISTENER || HTTP_POLL
 
 #define AUTO_ACCEPT_LICENSE 1
-#define AUTO_JOIN 0
+#define AUTO_JOIN 1
 #define CHAT_MUTEX_CENTRALIZED 1
 #define HORIZ_RESIZE 0 // buggy
 #define CLICKABLE_URLS_IN_CHAT 1
@@ -122,6 +122,7 @@
 //#include <string>
 
 /* known hosts */
+#define MAX_FAV_HOST_URL_LEN 256
 #define AUTOJOIN_FAIL "fail"
 #define MIN_PORT 2049
 #define MAX_PORT 2099
@@ -151,6 +152,9 @@
 #define DUPLICATE_USERNAME_LOGOUT_MSG "Sorry, there is already someone using that nick. Try logging in with a different username."
 #define DUPLICATE_USERNAME_CHAT_MSG "The nickname you've chosen is already bieing used by someone else. You will only be able to listen unless you login with a different username."
 #define NON_TEAMSTREAM_SERVER_MSG "TeamStream mode is not available on this server"
+
+/* misc texts */
+#define DESKTOP_SHORTCUT_TEXT "[InternetShortcut]\r\nURL=ninjam://"
 
 /* aliasses */
 #define IsTeamStream GetTeamStreamState

@@ -34,6 +34,7 @@
 #include <math.h>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <set>
 
 #include "resource.h"
@@ -205,6 +206,31 @@ void setFocusChat() { SendDlgItemMessage(g_hwnd , IDC_CHATENT , WM_SETFOCUS , 0 
 void setBpiBpmLabels(char* bpiString , char* bpmString)
 	{ SetDlgItemText(g_hwnd , IDC_BPILBL , bpiString) ; SetDlgItemText(g_hwnd , IDC_BPMLBL , bpmString) ; }
 
+void populateFavoritesMenu()
+{
+	const int buffSize = MAX_FAV_HOST_URL_LEN + 128 ; char menuText[buffSize] ;
+	HMENU submenu = GetSubMenu(GetMenu(g_hwnd) , 2) ;
+	MENUITEMINFO mii ; int miiSize = sizeof(mii) ; memset(&mii , 0 , miiSize) ;
+	mii.cbSize = miiSize ; mii.fMask =MIIM_TYPE ; mii.fType = MFT_STRING ;
+	mii.cch = buffSize ; mii.dwTypeData = menuText ;
+
+	char* fav1 = (g_fav_jam_1.compare("Favorite 1"))? g_fav_jam_1.c_str() : "Empty" ;
+	sprintf(menuText , "Save Quick Login Button &1    (%s)\tCtrl+1" , fav1) ;
+	SetMenuItemInfo(submenu , ID_FAVORITES_SAVE1 , false , &mii) ;
+	char* fav2 = (g_fav_jam_2.compare("Favorite 2"))? g_fav_jam_2.c_str() : "Empty" ;
+	sprintf(menuText , "Save Quick Login Button &2    (%s)\tCtrl+2" , fav2) ;
+	SetMenuItemInfo(submenu , ID_FAVORITES_SAVE2 , false , &mii) ;
+	char* fav3 = (g_fav_jam_3.compare("Favorite 3"))? g_fav_jam_3.c_str() : "Empty" ;
+	sprintf(menuText , "Save Quick Login Button &3    (%s)\tCtrl+3" , fav3) ;
+	SetMenuItemInfo(submenu , ID_FAVORITES_SAVE3 , false , &mii) ;
+}
+
+void ToggleFavoritesMenu()
+{
+	UINT flags = MF_BYPOSITION | ((g_is_logged_in)? MF_ENABLED : MF_GRAYED) ;
+	EnableMenuItem(GetMenu(g_hwnd) , 2 , flags) ;
+}
+
 void setTeamStreamMenuItems()
 {
 	bool isOn = TeamStream::ReadTeamStreamConfigBool(ENABLED_CFG_KEY , 1) ;
@@ -366,15 +392,15 @@ void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
 		EnableWindow(g_metro_grp ,	!isEnableTeamStream) ;
 		EnableWindow(g_metro_mute ,	!isEnableTeamStream) ;
 		EnableWindow(g_metro_vollbl ,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_vol ,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_panlbl ,	!isEnableTeamStream) ;
+		EnableWindow(g_metro_vol ,		!isEnableTeamStream) ;
+		EnableWindow(g_metro_panlbl,	!isEnableTeamStream) ;
 		EnableWindow(g_metro_pan ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpi_lbl ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpm_lbl ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpi_btn ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpi_edit ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpm_btn ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpm_edit ,	!isEnableTeamStream) ;
+		EnableWindow(g_bpi_lbl ,			!isEnableTeamStream) ;
+		EnableWindow(g_bpm_lbl ,			!isEnableTeamStream) ;
+		EnableWindow(g_bpi_btn ,			!isEnableTeamStream) ;
+		EnableWindow(g_bpi_edit ,		!isEnableTeamStream) ;
+		EnableWindow(g_bpm_btn ,		!isEnableTeamStream) ;
+		EnableWindow(g_bpm_edit ,		!isEnableTeamStream) ;
 
 		// force metro mute in TeamStream mode
 		bool isCheck = ((isEnableTeamStream) || (GetPrivateProfileInt(CONFSEC , METROMUTE_CFG_KEY , 0 , g_ini_file.Get()))) ;
@@ -384,9 +410,9 @@ void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
 	else
 	{
 		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) , showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) , showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) , showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) ,	showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) ,	showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) ,	showHide) ;
 	}
 }
 
@@ -651,6 +677,8 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 // TODO: this blocks user input - (spawn a thread instead of a timer?)
 				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching ....") ;
 				SetTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER , GET_LIVE_JAMS_DELAY , NULL) ;
+#else GET_LIVE_JAMS
+				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching disabled") ;
 #endif GET_LIVE_JAMS
       }
     return 0;
@@ -726,20 +754,20 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 #endif GET_LIVE_JAMS
 
     case WM_COMMAND:
-#if GET_LIVE_JAMS
 			{
+				// trap quick login buttons
 				HWND quickLoginBtnHwnd = (HWND)lParam ;
 				if (g_server_btns.find(quickLoginBtnHwnd) != g_server_btns.end())
 				{
 					char host[256] ; GetWindowText(quickLoginBtnHwnd , host , 256) ;
-					if (!strncmp(host , "Favorite" , 8)) return 0 ;
-
-					SetDlgItemText(hwndDlg , IDC_HOST , host) ;
-					SendMessage(hwndDlg , WM_COMMAND , (WPARAM)IDC_CONNECT , 0) ;
+					if (strncmp(host , "Favorite" , 8))
+					{
+						SetDlgItemText(hwndDlg , IDC_HOST , host) ;
+						SendMessage(hwndDlg , WM_COMMAND , (WPARAM)IDC_CONNECT , 0) ;
+					}
 					return 0 ;
 				}
 			}
-#endif GET_LIVE_JAMS
 
       switch (LOWORD(wParam))
       {
@@ -865,7 +893,7 @@ static void do_disconnect()
   }
 
 #if TEAMSTREAM
-	g_is_logged_in = false ;
+	g_is_logged_in = false ; ToggleFavoritesMenu() ;
 #endif TEAMSTREAM
 }
 
@@ -1289,10 +1317,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         m_remwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY_SCROLL),hwndDlg,RemoteOuterChannelListProc);
 
 #if TEAMSTREAM
-				// divs
+				// div handles
 				g_horiz_split = GetDlgItem(hwndDlg , IDC_DIV2) ; g_vert_split = GetDlgItem(hwndDlg , IDC_DIV4) ;
 
-				// metro
+				// metro handles
 				g_metro_grp = GetDlgItem(hwndDlg , IDC_METROGRP) ;
 				g_metro_mute = GetDlgItem(hwndDlg , IDC_METROMUTE) ;
 				g_metro_vollbl = GetDlgItem(hwndDlg , IDC_METROVOLLBL) ;
@@ -1306,7 +1334,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				g_bpm_btn = GetDlgItem(hwndDlg , IDC_VOTEBPMBTN) ;
 				g_bpm_edit = GetDlgItem(hwndDlg , IDC_VOTEBPMEDIT) ;
 
-				// chat
+				// chat handles
 				g_chat_display = GetDlgItem(hwndDlg , IDC_CHATDISP) ;
 				g_color_picker_toggle = GetDlgItem(hwndDlg , IDC_COLORTOGGLE) ;
 				g_color_picker = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_COLORPICKER) , hwndDlg , ColorPickerProc) ;
@@ -1329,7 +1357,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				g_color_btn_hwnds[16] = GetDlgItem(g_color_picker , IDC_COLORDKPURPLE) ;
 				g_color_btn_hwnds[17] = GetDlgItem(g_color_picker , IDC_COLORLTBLACK) ;
 
-				// TeamStream links
+				// TeamStream link handles
 				g_linkup_btn = GetDlgItem(g_hwnd , IDC_LINKUP) ;
 				g_teamstream_lbl = GetDlgItem(g_hwnd , IDC_LINKLBL) ;
 				g_linkdn_btn = GetDlgItem(g_hwnd , IDC_LINKDN) ;
@@ -1339,8 +1367,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				g_users_listbox = GetDlgItem(g_users_list , IDC_USERSLISTBOX) ;
 				g_interval_progress = GetDlgItem(g_hwnd , IDC_INTERVALPOS) ;
 #endif TEAMSTREAM_W32_LISTVIEW
-				// update popup
+				// update popup handles
 				g_update_popup = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_UPDATE) , hwndDlg , NULL) ;
+
+				populateFavoritesMenu() ; ToggleFavoritesMenu() ;
 #endif TEAMSTREAM
 
         // initialize local channels from config
@@ -1595,7 +1625,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					// set local user init timer
 					if (!g_is_logged_in && ns == NJClient::NJC_STATUS_OK)
 					{
-						g_is_logged_in = true ;
+						g_is_logged_in = true ; ToggleFavoritesMenu() ;
 						SetTimer(g_hwnd , IDT_LOCAL_USER_INIT_TIMER , LOCAL_USER_INIT_DELAY , NULL) ;
 					}
 #endif TEAMSTREAM_INIT
@@ -1856,24 +1886,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             do_connect();
           }
         break;
-
-				case ID_FAVORITES_SEND_EMAIL:
-				break ;
-				case ID_FAVORITES_SAVE_SHORTCUT:
-				break ;
-				case ID_FAVORITES_SAVE1:
-					g_fav_jam_1 = g_connect_host.Get() ;
-					TeamStream::WriteTeamStreamConfigString("fav_jam_1" , g_connect_host.Get()) ;
-				break ;
-				case ID_FAVORITES_SAVE2:
-					g_fav_jam_2 = g_connect_host.Get() ;
-					TeamStream::WriteTeamStreamConfigString("fav_jam_2" , g_connect_host.Get()) ;
-				break ;
-				case ID_FAVORITES_SAVE3:
-					g_fav_jam_3 = g_connect_host.Get() ;
-					TeamStream::WriteTeamStreamConfigString("fav_jam_3" , g_connect_host.Get()) ;
-				break ;
-
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
         break;
@@ -2016,6 +2028,66 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         break;
 
 #if TEAMSTREAM
+				case ID_TEAMSTREAM_ON:
+					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
+					else if (g_is_logged_in) initTeamStreamUser(hwndDlg , true) ;
+					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , true) ; setTeamStreamMenuItems() ;
+				break ;
+				case ID_TEAMSTREAM_OFF:
+					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ;
+					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , false) ; setTeamStreamMenuItems() ;
+				break ;
+				case ID_TEAMSTREAM_LOAD: // TODO:
+				break ;
+				case ID_TEAMSTREAM_SAVE: // TODO:
+				break ;
+
+				case ID_FAVORITES_SEND_EMAIL:
+				break ;
+				case ID_FAVORITES_SAVE_SHORTCUT:
+				{
+					TCHAR desktopPath[MAX_PATH] ; char* host = g_connect_host.Get() ;
+					SHGetSpecialFolderPath(NULL , desktopPath , CSIDL_DESKTOPDIRECTORY , FALSE) ;
+					string filePath(desktopPath) ; filePath += "\\" ; filePath += host ; filePath += ".url" ;
+					size_t colonIdx = filePath.find_last_of(':') ; filePath.replace(colonIdx , 1 , ".") ;
+					ofstream file(filePath.c_str()) ; if (!file.is_open()) break ;
+
+					file << DESKTOP_SHORTCUT_TEXT << host ; file.close() ;
+				}
+				break ;
+
+				case ID_FAVORITES_SAVE1: case ID_FAVORITES_SAVE2: case ID_FAVORITES_SAVE3:
+				{
+					char* host ; string hostString(host = g_connect_host.Get()) ;
+					if (strlen(host) >= MAX_FAV_HOST_URL_LEN) break ;
+
+					if (g_fav_jam_1 == hostString)
+						g_fav_jam_1 = "Favorite 1" ;
+						TeamStream::WriteTeamStreamConfigString("fav_jam_1" , "Favorite 1") ;
+					if (g_fav_jam_2 == hostString)
+						g_fav_jam_2 = "Favorite 2" ;
+						TeamStream::WriteTeamStreamConfigString("fav_jam_2" , "Favorite 2") ;
+					if (g_fav_jam_3 == hostString)
+						g_fav_jam_3 = "Favorite 3" ;
+						TeamStream::WriteTeamStreamConfigString("fav_jam_3" , "Favorite 3") ;
+					switch (LOWORD(wParam))
+					{
+						case ID_FAVORITES_SAVE1:
+							g_fav_jam_1 = hostString ;
+							TeamStream::WriteTeamStreamConfigString("fav_jam_1" , host) ;
+						break ;
+						case ID_FAVORITES_SAVE2:
+							g_fav_jam_2 = hostString ;
+							TeamStream::WriteTeamStreamConfigString("fav_jam_2" , host) ;
+						break ;
+						case ID_FAVORITES_SAVE3:
+							g_fav_jam_3 = hostString ;
+							TeamStream::WriteTeamStreamConfigString("fav_jam_3" , host) ;
+						break ;
+					}
+					populateFavoritesMenu() ;
+				}
+				break ;
 				case IDC_ADDCH:
 				{
 					int idx;
@@ -2051,21 +2123,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 //					SetWindowPos(m_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE | SWP_NOACTIVATE) ;
 					SetWindowPos(g_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
 				}
-				break ;
-
-				// TeamStream menu items
-				case ID_TEAMSTREAM_ON:
-					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
-					else if (g_is_logged_in) initTeamStreamUser(hwndDlg , true) ;
-					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , true) ; setTeamStreamMenuItems() ;
-				break ;
-				case ID_TEAMSTREAM_OFF:
-					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ;
-					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , false) ; setTeamStreamMenuItems() ;
-				break ;
-				case ID_TEAMSTREAM_LOAD: // TODO:
-				break ;
-				case ID_TEAMSTREAM_SAVE: // TODO:
 				break ;
 
 				// link assignment and ordering (see also remchn.cpp RemoteUserItemProc())

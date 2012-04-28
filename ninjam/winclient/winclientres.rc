@@ -23,13 +23,13 @@ IDR_MENU1 MENU
         MENUITEM "&TeamStream Mode\tCtrl+T", ID_TEAMSTREAM_ON
         MENUITEM "&NinJam Mode\tCtrl+N", ID_TEAMSTREAM_OFF, CHECKED
         MENUITEM SEPARATOR
-				MENUITEM "&Load Config (nyi)\tCtrl+L", ID_TEAMSTREAM_LOAD
-        MENUITEM "&Save Config (nyi)\tCtrl+S", ID_TEAMSTREAM_SAVE
+				MENUITEM "&Load Config (nyi)\tCtrl+L", ID_TEAMSTREAM_LOAD, GRAYED
+        MENUITEM "&Save Config (nyi)\tCtrl+S", ID_TEAMSTREAM_SAVE, GRAYED
     }
 		POPUP "&Favorites"
     {
-				MENUITEM "&Email Link to this Jam (nyi)\tCtrl+E", ID_FAVORITES_SEND_EMAIL
-				MENUITEM "Save Desktop &Shortcut (nyi)\tCtrl+F", ID_FAVORITES_SAVE_SHORTCUT
+				MENUITEM "&Email Link to this Jam (nyi)\tCtrl+E", ID_FAVORITES_SEND_EMAIL, GRAYED
+				MENUITEM "Save Desktop &Shortcut \tCtrl+F", ID_FAVORITES_SAVE_SHORTCUT
 				MENUITEM SEPARATOR
         MENUITEM "Save Quick Login Button &1\tCtrl+1", ID_FAVORITES_SAVE1
         MENUITEM "Save Quick Login Button &2\tCtrl+2", ID_FAVORITES_SAVE2

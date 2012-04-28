@@ -78,6 +78,8 @@ void processAppUpdate(char* updateUrl) ;
 // GUI helpers
 void setFocusChat() ;
 void setBpiBpmLabels(char* bpiString , char* bpmString) ;
+void populateFavoritesMenu() ;
+void ToggleFavoritesMenu() ;
 void setTeamStreamMenuItems() ;
 // GUI listView functions
 int getLinkIdxByBtnIdx(int btnIdx) ;
