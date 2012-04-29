@@ -7,9 +7,17 @@ TeamStream is fully compatible with NINJAM servers when in NINJAM mode.
 TeamStream mode is currently disabled while on public NINJAM servers 
 though this may change in the future. For now, in order to fully utilize
 all TeamStream related capabilities, you must install your own NINJAM server.
-Visit the TeamStream HomePage (http://teamstream.heroku.com/) for details
-or to download pre-compiled binaries.
+Visit the TeamStream HomePage (http://teamstream.heroku.com/) for details.
 
+Grab the latest build here -->
+  https://github.com/downloads/mr-jonze/TeamStream/TeamStream.msi
+NINJAM server binaries here -->
+  Windows:
+    https://github.com/downloads/mr-jonze/TeamStream/ninjam_server_win32_v006.zip
+	OSX:
+    https://github.com/downloads/mr-jonze/TeamStream/ninjam_server_osx.dmg
+	Linux (source only):
+	  https://github.com/downloads/mr-jonze/TeamStream/ninjam_server_0.06.zip
 
 Features:
 Includes all the standard NINJAM features (sans the integrated FX)
@@ -70,6 +78,6 @@ The original source trees were taken from http://www.ninjam.com/. As of May 2012
 the server is unmodified from the original version and the curses client
 is unmodified from the Wahjam version. The original files were:
 
-  cclient_src_v0.01a.tar.gz
-  ninjam_server_0.06.tar.gz
-  ninjam_winclient_0.06.zip
+  cclient_src_v0.01a.tar.gz (https://github.com/downloads/mr-jonze/TeamStream/cclient_src_v0.01a.tar.gz)
+  ninjam_server_0.06.tar.gz (https://github.com/downloads/mr-jonze/TeamStream/ninjam_server_0.06.zip)
+  ninjam_winclient_0.06.zip (https://github.com/downloads/mr-jonze/TeamStream/ninjam_winclient_0.06.zip)
