@@ -1,8 +1,29 @@
-Wahjam clients and server (http://wahjam.org/)
-----------------------------------------------
+TeamStream clients and server (http://teamstream.heroku.com/)
+-------------------------------------------------------------
 
-This software allows musicians to play music together over the internet.  It is
-compatible with and based on NINJAM (http://ninjam.com/).
+TeamStream allows musicians to play music together over the internet
+and is based on the excellent NINJAM softwares (http://ninjam.com/).
+TeamStream is fully compatible with NINJAM servers when in NINJAM mode.
+TeamStream mode is currently disabled while on public NINJAM servers 
+though this may change in the future. For now, in order to fully utilize
+all TeamStream related capabilities, you must install your own NINJAM server.
+Visit the TeamStream HomePage (http://teamstream.heroku.com/) for details
+or to download pre-compiled binaries.
+
+
+Features:
+Includes all the standard NINJAM features (sans the integrated FX)
+Fully compatible with all known public NINJAM rooms
+Redesigned sleeker GUI - view all jammers without scrolling on most screens
+Launch TeamStream and join a jam by clicking a webpage link or desktop shortcut
+Creating desktop shortcut for favorite jam rooms
+Quick login buttons for saving favorite jam rooms
+Quick login buttons for currently active jam rooms
+Buttons for bpi/bpm voting
+Colored chat text
+Automatically accept server licenses after initially agreeing (unless they change)
+TeamStreaming (:yay:) - What is TeamStreaming? See http://teamstream.heroku.com/
+
 
 This code is licensed GPL v2 or later:
 
@@ -13,57 +34,21 @@ Source tree layout
 ------------------
 
   ninjam/
-    qtclient/       Qt client (cross-platform)
+    cursesclient/   Curses client
+		njasiodrv/      ASIO driver support
+    server/         NINJAM Server
     winclient/      Windows client
-    cocoaclient/    Mac OS X client
-    cursesclient/   Linux/Mac OS X curses client
-    server/         Server
   WDL/              Common library
-  sdks/             Third-party source libraries (Windows only)
-
-
-How to build the Qt client
---------------------------
-
-Install the Qt cross-platform application and UI toolkit from http://qt.nokia.com/.
-
-Install Ogg and Vorbis audio codec libraries from http://xiph.org/.
-
-Then run the following commands:
-
-  cd ninjam/wahjam
-  qmake
-  make
-
-On Windows the recommended build environment for libogg and libvorbis is MinGW
-and MSYS from http://www.mingw.org/.  Build libogg and libvorbis inside MSYS,
-then use the Qt build environment to compile qtclient.  You may need to add the
-MSYS include/ and lib/ paths as QMAKE_CXXFLAGS -I and LIBS -L flags in
-ninjam/qtclient/qtclient.pro.
-
-
-How to build the other software
--------------------------------
-
-To build a particular target change into its directory and run make(1).  For
-the Mac OS X cocoaclient an Xcode project is available.  For the Windows
-winclient a Visual Studio project is available.
+  sdks/             Third-party source libraries
 
 
 How to build the Windows client with Visual Studio
 --------------------------------------------------
 
-The .dsp and .dsw project files included are from the original Ninjam source code
-from 2005 . These project files are now obsolete and will not build with VS2010.
-In order to compile this program using VS2010 you must first import the .dsp into
-VS2008 and save in the new format. Be sure to save the .sln file to the winclient
-folder. You should be able to open the newly created .sln file in VS2010. Even then
-the winclient will not compile out of the box. The following steps must be taken:
-
   * Download and install the DirectX SDK (June 2010 release works well)
   * Copy dsound.h from the DirectX SDK to sdks/dxsdk/include/
   * Copy dsound.lib from the DirectX SDK to sdks/dxsdk/lib/x86/
-  * Open the project properties dialog and browse to
+  * Launch winclient.sln then open the project properties dialog and browse to
       Configuration Properties -> Linker -> General and add
 	  ../../sdks/dxsdk/lib/x86/ to Additional Library Directories
   * Copy the Ogg/Vorbis SDK into sdks/ (e.g. sdks/oggvorbis-win32sdk-1.0.1/)
@@ -73,41 +58,18 @@ the winclient will not compile out of the box. The following steps must be taken
   * Hit F7 and watch the deprecation warnings fly :) then you're ready to jam
 
 
-Cross-compiling the Qt client for Windows
------------------------------------------
-
-The MinGW compiler can be used as a cross-compiler to build Windows executables
-from a Linux host.  This allows us to set up a Linux build server capable of
-building Windows executables.
-
-The mingw-cross-env project provides a cross-compiler and many popular
-libraries, including Wahjam's dependencies on ogg, vorbis, the Qt framework,
-and PortAudio.  At the time of writing the latest release of mingw-cross-env
-had some dead URLs so the current development version was used from their
-mercurial repository.
-
-1. Clone mingw-cross-env:
-
-  hg clone http://hg.savannah.nongnu.org/hgweb/mingw-cross-env
-
-1. Build the cross-compiler and dependencies:
-
-  cd mingw-cross-env
-  make gcc ogg vorbis qt portaudio
-
-1. If you encounter any build errors try reducing optional dependencies.
-
-For example, try disabling SQL drivers and DBUS on the ./configure line in
-mingw-cross-env/src/qt.mk.
-
-
 NINJAM fork information
 ------------------------
 
-The original source trees were taken from http://www.ninjam.com/.  The files
-were:
+TeamStream began its life as a fork of the Wahjam project (http://wahjam.org/)
+which itself is a fork of the original NINJAM software (http://www.ninjam.com/).
+The original software is available at the respective websites and also mirrored
+in this repo in the Downloads section.
 
-  ninjam_winclient_0.06.zip
-  ninjam_osxclient_0.02a.tar.gz
+The original source trees were taken from http://www.ninjam.com/. As of May 2012,
+the server is unmodified from the original version and the curses client
+is unmodified from the Wahjam version. The original files were:
+
   cclient_src_v0.01a.tar.gz
   ninjam_server_0.06.tar.gz
+  ninjam_winclient_0.06.zip

@@ -503,7 +503,7 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      SetDlgItemText(hwndDlg,IDC_VER,"Version " VERSION_FULL " compiled on " __DATE__ " at " __TIME__);
+      SetDlgItemText(hwndDlg,IDC_VER,"Version " VERSION " compiled on " __DATE__ " at " __TIME__);
     break;
     case WM_CLOSE:
       EndDialog(hwndDlg,0);

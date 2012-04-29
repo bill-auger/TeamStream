@@ -105,7 +105,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="&#x0D;&#x0A;cd ..\..\wix&#x0D;&#x0A;del TeamStream.exe&#x0D;&#x0A;copy ..\ninjam\winclient\Release\TeamStream.exe TeamStream.exe&#x0D;&#x0A;&#x0D;&#x0A;&quot;C:\Program Files\Windows Installer XML v3.5\bin\candle.exe&quot; *.wxs&#x0D;&#x0A;&quot;C:\Program Files\Windows Installer XML v3.5\bin\light.exe&quot; -ext WixUIExtension *.wixobj&#x0D;&#x0A;&#x0D;&#x0A;del *.wixobj&#x0D;&#x0A;del *.wixpdb&#x0D;&#x0A;del *.ini&#x0D;&#x0A;"
+				CommandLine="cd ..\..\build&#x0D;&#x0A;build.bat"
 				ExcludedFromBuild="false"
 			/>
 		</Configuration>

@@ -24,8 +24,8 @@
 #ifndef _TEAMSTREAM_H_
 #define _TEAMSTREAM_H_
 
-#define TEAMSTREAM 1
 // debug toggle features
+#define TEAMSTREAM 1
 #if TEAMSTREAM
 #define TEAMSTREAM_INIT 1
 #define TEAMSTREAM_CHAT 1
@@ -54,8 +54,6 @@
 //		the deepest buffer is for final mix listen only (may not need)
 #define N_LINKS 8
 #define N_TEAMSTREAM_BUFFERS N_LINKS - 1
-#define VERSION "0.07.01"
-#define VERSION_FULL "0.07.01.teamstream"
 
 // static users #defines
 // USERID_NOBODY and USERID_LOCAL are semantical - the rest are primarily for chat colorong
@@ -114,13 +112,6 @@
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
 
-/* license.cpp includes */
-//#include <string>
-
-/* chat.cpp includes */
-//#include "windows.h"
-//#include <string>
-
 /* known hosts */
 #define MAX_FAV_HOST_URL_LEN 256
 #define AUTOJOIN_FAIL "fail"
@@ -159,7 +150,8 @@
 /* aliasses */
 #define IsTeamStream GetTeamStreamState
 
-/* teamstream.cpp includes */
+/* includes */
+#include "version.h"
 #include "windows.h"
 #include <string>
 #include "../WDL/ptrlist.h"
