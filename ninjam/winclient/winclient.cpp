@@ -199,7 +199,7 @@ void processAppUpdate(char* updateUrl)
 }
 
 
-/* GUI helpers */
+/* GUI functions */
 
 void setFocusChat() { SendDlgItemMessage(g_hwnd , IDC_CHATENT , WM_SETFOCUS , 0 , 0) ; }
 
@@ -208,7 +208,7 @@ void setBpiBpmLabels(char* bpiString , char* bpmString)
 
 void populateFavoritesMenu()
 {
-	const int buffSize = MAX_FAV_HOST_URL_LEN + 128 ; char menuText[buffSize] ;
+	const int buffSize = MAX_HOST_LEN + 128 ; char menuText[buffSize] ;
 	HMENU submenu = GetSubMenu(GetMenu(g_hwnd) , 2) ;
 	MENUITEMINFO mii ; int miiSize = sizeof(mii) ; memset(&mii , 0 , miiSize) ;
 	mii.cbSize = miiSize ; mii.fMask =MIIM_TYPE ; mii.fType = MFT_STRING ;
@@ -225,7 +225,7 @@ void populateFavoritesMenu()
 	SetMenuItemInfo(submenu , ID_FAVORITES_SAVE3 , false , &mii) ;
 }
 
-void ToggleFavoritesMenu()
+void toggleFavoritesMenu()
 {
 	UINT flags = MF_BYPOSITION | ((g_is_logged_in)? MF_ENABLED : MF_GRAYED) ;
 	EnableMenuItem(GetMenu(g_hwnd) , 2 , flags) ;
@@ -239,7 +239,141 @@ void setTeamStreamMenuItems()
 }
 
 #if TEAMSTREAM_W32_LISTVIEW
+
+void updateQuickLoginButtons()
+{
+	RECT r ; int btnX , btnY , btnW , btnH , lblX , lblY , lblW , lblH ;
+	HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT) ;
+	HWND connectDlgHwnd = FindWindow(NULL , TEXT("TeamStream Connection Configuration")) ;
+	if (connectDlgHwnd)
+	{
+		// map dialog units to pixels for new buttons
+		r ; r.left = 10 ; r.top = 84 ; r.right = 88 ; r.bottom = 96 ; MapDialogRect(connectDlgHwnd , &r) ;
+		btnX = r.left ; btnY = r.top ; btnW = r.right - r.left ; btnH = r.bottom - r.top ;
+		r.left = 94 ; r.top = 2 ; r.right = 248 ; r.bottom = 10 ; MapDialogRect(connectDlgHwnd , &r) ;
+		lblX = r.left ; lblY = r.top ; lblW = r.right - r.left ; lblH = r.bottom - r.top ;
+	}
+
+	// parse servers csv lines
+	istringstream ssCsv(TeamStreamNet::GetLiveJams()) ;
+	string line ; char users[1024] ; int nServers = 0 ;
+	while (getline(ssCsv , line))
+	{
+		// parse server line
+		istringstream ssLine(line) ; string server ; getline(ssLine , server , ',') ; 
+		string usersCsv ; getline(ssLine , usersCsv) ; istringstream ssUsers(usersCsv) ;
+		string user ; short nUsers = 0 ; while (getline(ssUsers , user , ',')) ++nUsers ;
+		sprintf(users , "%d jammers" , nUsers) ;
+
+// TODO: servers bar
+
+		if (!connectDlgHwnd) continue ;
+
+		// add live jam quick login button and users list
+		int y = btnY + (btnH * nServers++) ;
+		// button
+		HWND serverBtn = CreateWindow("BUTTON" , server.c_str() ,
+			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WM_SETFONT ,
+			btnX , y , btnW , btnH , connectDlgHwnd , (HMENU)IDC_LIVEBTN , g_hInst , NULL) ;
+		SendMessage(serverBtn , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
+		g_server_btns.insert(serverBtn) ;
+		// users list
+		sprintf(users , "%d jammers: " , nUsers) ; strncat(users , usersCsv.c_str() , 1000) ;
+		HWND serverLbl = CreateWindow("STATIC" , users ,
+			WS_VISIBLE | WS_CHILD | SS_LEFT | SS_WORDELLIPSIS ,
+			lblX , y + lblY , lblW , lblH , connectDlgHwnd , (HMENU)IDC_LIVELBL , g_hInst , NULL) ;
+		SendMessage(serverLbl , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
+	}
+
+	// print labels
+	char grpLbl[32] = "No" ; if (nServers) sprintf(grpLbl , "%d" , nServers) ;
+	strcat(grpLbl , " Live Jam") ; if (nServers != 1) strcat(grpLbl , "s") ;
+	SetDlgItemText(connectDlgHwnd , IDC_LIVEGRP , grpLbl) ;
+	SetDlgItemText(connectDlgHwnd , IDC_LIVELBL , "None") ; // covered if (nServers)
+	if (nServers < 2) return ;
+
+	// shift 'Connect' and 'Cancel' buttons and resize groupbox and connect dialog 
+	// NOTE: we initially accommodate one button so grow only nServers - 1 button heights
+	int growH = (btnH * (nServers - 1)) ;
+	// map the new x and y of the 'Connect' (left/top) and 'Cancel' (right/bottom) buttons
+	r.left = 148 ; r.top = 108 ; r.right = 204 ; r.bottom = 108 ; MapDialogRect(connectDlgHwnd , &r) ;
+	int connectX = r.left ; int connectY = r.top ; int cancelX = r.right ; int cancelY = r.bottom ;
+	HWND connectBtnHwnd = GetDlgItem(connectDlgHwnd , IDC_CONNECT) ;
+	SetWindowPos(connectBtnHwnd , NULL , connectX , connectY + growH , 0 , 0 , SWP_NOSIZE) ;
+	HWND cancelBtnHwnd = GetDlgItem(connectDlgHwnd , IDC_CANCEL) ;
+	SetWindowPos(cancelBtnHwnd , NULL , cancelX , cancelY + growH , 0 , 0 , SWP_NOSIZE) ;
+	// map the new dimensions of the groupbox
+	r.left = 250  ; r.top = 28 ; MapDialogRect(connectDlgHwnd , &r) ; int grpW = r.left ; int grpH = r.top ;
+	HWND liveGrpHwnd = GetDlgItem(connectDlgHwnd , IDC_LIVEGRP) ;
+	SetWindowPos(liveGrpHwnd , NULL , 0 , 0 , grpW , grpH + growH , SWP_NOMOVE) ;
+	// map the new dimensions of the connect dialog
+	GetWindowRect(connectDlgHwnd , &r) ; int dlgW = r.right - r.left ; int dlgH = r.bottom - r.top ;
+	SetWindowPos(connectDlgHwnd , NULL , 0 , 0 , dlgW , dlgH + growH , SWP_NOMOVE) ;
+}
+
+void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
+{
+	UINT showHide = (isEnableTeamStream)? SW_SHOWNA : SW_HIDE ;
+	if (userId == USERID_LOCAL)
+	{
+		// teamstream items
+		setTeamStreamMenuItems() ;
+		ShowWindow(g_linkup_btn ,				showHide) ;
+		ShowWindow(g_teamstream_lbl ,		showHide) ;
+		ShowWindow(g_linkdn_btn ,				showHide) ;
+#if TEAMSTREAM_W32_LISTVIEW
+		ShowWindow(g_links_listview ,			showHide) ;
+		ShowWindow(g_interval_progress ,	!showHide) ;
+#endif TEAMSTREAM_W32_LISTVIEW
+
+		// metronome items
+		EnableWindow(g_metro_grp ,	!isEnableTeamStream) ;
+		EnableWindow(g_metro_mute ,	!isEnableTeamStream) ;
+		EnableWindow(g_metro_vollbl ,	!isEnableTeamStream) ;
+		EnableWindow(g_metro_vol ,		!isEnableTeamStream) ;
+		EnableWindow(g_metro_panlbl,	!isEnableTeamStream) ;
+		EnableWindow(g_metro_pan ,	!isEnableTeamStream) ;
+		EnableWindow(g_bpi_lbl ,			!isEnableTeamStream) ;
+		EnableWindow(g_bpm_lbl ,			!isEnableTeamStream) ;
+		EnableWindow(g_bpi_edit ,		!isEnableTeamStream) ;
+		EnableWindow(g_bpm_edit ,		!isEnableTeamStream) ;
+		char editText[4] ; int len = Edit_GetText(g_bpi_edit , (LPTSTR)editText , 3) ;
+		EnableWindow(g_bpi_btn ,			!isEnableTeamStream && len) ;
+		len = Edit_GetText(g_bpm_edit , (LPTSTR)editText , 3) ;
+		EnableWindow(g_bpm_btn ,		!isEnableTeamStream && len) ;
+
+		// force metro mute in TeamStream mode
+		bool isCheck = ((isEnableTeamStream) || (GetPrivateProfileInt(CONFSEC , METROMUTE_CFG_KEY , 0 , g_ini_file.Get()))) ;
+		CheckDlgButton(g_hwnd , IDC_METROMUTE , (isCheck)? BST_CHECKED : BST_UNCHECKED);
+		g_client->config_metronome_mute = isCheck ;
+	}
+	else
+	{
+		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) ,	showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) ,	showHide) ;
+		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) ,	showHide) ;
+	}
+}
+
+void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
+{
+	char linkPosText[24] ;
+	if (linkIdx == N_LINKS) sprintf(linkPosText , "Listening Only") ;
+	else sprintf(linkPosText , "TeamStream Position: %d" , linkIdx + 1) ;
+	if (userId == USERID_LOCAL) SetDlgItemText(g_hwnd , IDC_LINKLBL , linkPosText) ;
+	else if (userId > USERID_LOCAL)
+		SetDlgItemText(TeamStream::GetUserGUIHandleWin32(userId) , IDC_LINKLBL , linkPosText) ;
+
+#if TEAMSTREAM_W32_LISTVIEW
+	if (prevLinkIdx != N_LINKS) setLinksListViewColumnText(prevLinkIdx , "Nobody") ;
+	setLinksListViewColumnText(linkIdx , username) ;
+#endif TEAMSTREAM_W32_LISTVIEW
+}
+
+
 /* GUI listView functions */
+
 int getLinkIdxByBtnIdx(int btnIdx)
 {
 	int btnIdxs[N_LINKS] ; SendMessage(g_links_listview ,
@@ -364,74 +498,11 @@ void removeFromUsersListbox(char* username)
 
 void clearChat() { SetWindowText(GetDlgItem(g_hwnd , IDC_CHATDISP) , "") ; }
 
-void SendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
+void sendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
 
-void SendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
+void sendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
 
 COLORREF getChatColor(int idx) { return g_chat_colors[idx] ; }
-
-
-/* GUI functions */
-
-void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
-{
-	UINT showHide = (isEnableTeamStream)? SW_SHOWNA : SW_HIDE ;
-	if (userId == USERID_LOCAL)
-	{
-		// teamstream items
-		setTeamStreamMenuItems() ;
-		ShowWindow(g_linkup_btn ,				showHide) ;
-		ShowWindow(g_teamstream_lbl ,		showHide) ;
-		ShowWindow(g_linkdn_btn ,				showHide) ;
-#if TEAMSTREAM_W32_LISTVIEW
-		ShowWindow(g_links_listview ,			showHide) ;
-		ShowWindow(g_interval_progress ,	!showHide) ;
-#endif TEAMSTREAM_W32_LISTVIEW
-
-		// metronome items
-		EnableWindow(g_metro_grp ,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_mute ,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_vollbl ,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_vol ,		!isEnableTeamStream) ;
-		EnableWindow(g_metro_panlbl,	!isEnableTeamStream) ;
-		EnableWindow(g_metro_pan ,	!isEnableTeamStream) ;
-		EnableWindow(g_bpi_lbl ,			!isEnableTeamStream) ;
-		EnableWindow(g_bpm_lbl ,			!isEnableTeamStream) ;
-		EnableWindow(g_bpi_btn ,			!isEnableTeamStream) ;
-		EnableWindow(g_bpi_edit ,		!isEnableTeamStream) ;
-		EnableWindow(g_bpm_btn ,		!isEnableTeamStream) ;
-		EnableWindow(g_bpm_edit ,		!isEnableTeamStream) ;
-
-		// force metro mute in TeamStream mode
-		bool isCheck = ((isEnableTeamStream) || (GetPrivateProfileInt(CONFSEC , METROMUTE_CFG_KEY , 0 , g_ini_file.Get()))) ;
-		CheckDlgButton(g_hwnd , IDC_METROMUTE , (isCheck)? BST_CHECKED : BST_UNCHECKED);
-		g_client->config_metronome_mute = isCheck ;
-	}
-	else
-	{
-		HWND userGUIHandle = TeamStream::GetUserGUIHandleWin32(userId) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKUP) ,	showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKLBL) ,	showHide) ;
-		ShowWindow(GetDlgItem(userGUIHandle , IDC_LINKDN) ,	showHide) ;
-	}
-}
-
-void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
-{
-	char linkPosText[24] ;
-	if (linkIdx == N_LINKS) sprintf(linkPosText , "Listening Only") ;
-	else sprintf(linkPosText , "TeamStream Position: %d" , linkIdx + 1) ;
-	if (userId == USERID_LOCAL) SetDlgItemText(g_hwnd , IDC_LINKLBL , linkPosText) ;
-	else if (userId > USERID_LOCAL)
-		SetDlgItemText(TeamStream::GetUserGUIHandleWin32(userId) , IDC_LINKLBL , linkPosText) ;
-
-#if TEAMSTREAM_W32_LISTVIEW
-	if (prevLinkIdx != N_LINKS) setLinksListViewColumnText(prevLinkIdx , "Nobody") ;
-	setLinksListViewColumnText(linkIdx , username) ;
-#endif TEAMSTREAM_W32_LISTVIEW
-}
-
-
 
 
 /* teamstream window procs */
@@ -631,6 +702,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 #define MAX_HIST_ENTRIES 8
 
+
 static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
@@ -674,7 +746,6 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 				g_server_btns.insert(favBtn3) ; SetWindowText(favBtn3 , g_fav_jam_3.c_str()) ;
 
 #if GET_LIVE_JAMS
-// TODO: this blocks user input - (spawn a thread instead of a timer?)
 				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching ....") ;
 				SetTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER , GET_LIVE_JAMS_DELAY , NULL) ;
 #else GET_LIVE_JAMS
@@ -686,70 +757,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 #if GET_LIVE_JAMS
 		case WM_TIMER:
 			if (wParam == IDT_GET_LIVE_JAMS_TIMER)
-			{
-				KillTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER) ;
-
-				// get list of live rooms from the webserver
-				TeamStreamNet* net = new TeamStreamNet ;
-				istringstream ssCsv(net->HttpGet(LIVE_JAMS_URL)) ;
-
-//string csv = net->HttpGet(LIVE_JAMS_URL) ; istringstream ssCsv(csv) ; // DEBUG check resp
-//istringstream ssCsv("ninbot.com:2052,gnorf76,anon,DirtyDeeds,\nninbot.com:2051,JooZz,\nninjamer.com:2052,weebly,meiko,nik,gkouthegreek,") ; // DEBUG mock
-
-				// map dialog units to pixels for new buttons
-				RECT r ; r.left = 10 ; r.top = 84 ; r.right = 88 ; r.bottom = 96 ; MapDialogRect(hwndDlg , &r) ;
-				int btnX = r.left ; int btnY = r.top ; int btnW = r.right - r.left ; int btnH = r.bottom - r.top ;
-				r.left = 94 ; r.top = 2 ; r.right = 248 ; r.bottom = 10 ; MapDialogRect(hwndDlg , &r) ;
-				int lblX = r.left ; int lblY = r.top ; int lblW = r.right - r.left ; int lblH = r.bottom - r.top ;
-				HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT) ; int nServers = 0 ; string line ;
-
-				// add live jam quick login buttons
-				while (getline(ssCsv , line))
-				{
-					int y = btnY + (btnH * nServers++) ;
-					istringstream ssLine(line) ; string server ; getline(ssLine , server , ',') ; 
-					string usersCsv ; getline(ssLine , usersCsv) ; istringstream ssUsers(usersCsv) ;
-					string user ; short n = 0 ; while (getline(ssUsers , user , ',')) ++n ;
-					char users[1024] ; sprintf(users , "%d jammers: " , n) ; strncat(users , usersCsv.c_str() , 1000) ;
-
-					// quick login button
-					HWND serverBtn = CreateWindow("BUTTON" , server.c_str() ,
-						WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WM_SETFONT ,
-						btnX , y , btnW , btnH , hwndDlg , (HMENU)IDC_LIVEBTN , g_hInst , NULL) ;
-					SendMessage(serverBtn , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
-					g_server_btns.insert(serverBtn) ;
-					// users list
-					HWND serverLbl = CreateWindow("STATIC" , users ,
-						WS_VISIBLE | WS_CHILD | SS_LEFT | SS_WORDELLIPSIS ,
-						lblX , y + lblY , lblW , lblH , hwndDlg , (HMENU)IDC_LIVELBL , g_hInst , NULL) ;
-					SendMessage(serverLbl , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
-				}
-
-				// print labels
-				char grpLbl[32] = "No" ; if (nServers) sprintf(grpLbl , "%d" , nServers) ;
-				strcat(grpLbl , " Live Jam") ; if (nServers != 1) strcat(grpLbl , "s") ;
-				SetDlgItemText(hwndDlg , IDC_LIVEGRP , grpLbl) ;
-				SetDlgItemText(hwndDlg , IDC_LIVELBL , "None") ; // covered if (nServers)
-				if (nServers < 2) break ;
-
-				// shift 'Connect' and 'Cancel' buttons and resize groupbox and connect dialog 
-				// NOTE: we initially accommodate one button so grow only nServers - 1 button heights
-				int growH = (btnH * (nServers - 1)) ;
-				// map the new x and y of the 'Connect' (left/top) and 'Cancel' (right/bottom) buttons
-				r.left = 148 ; r.top = 108 ; r.right = 204 ; r.bottom = 108 ; MapDialogRect(hwndDlg , &r) ;
-				int connectX = r.left ; int connectY = r.top ; int cancelX = r.right ; int cancelY = r.bottom ;
-				HWND liveConnectHwnd = GetDlgItem(hwndDlg , IDC_CONNECT) ;
-				SetWindowPos(liveConnectHwnd , NULL , connectX , connectY + growH , 0 , 0 , SWP_NOSIZE) ;
-				HWND liveCancelHwnd = GetDlgItem(hwndDlg , IDC_CANCEL) ;
-				SetWindowPos(liveCancelHwnd , NULL , cancelX , cancelY + growH , 0 , 0 , SWP_NOSIZE) ;
-				// map the new dimensions of the groupbox
-				r.left = 250  ; r.top = 28 ; MapDialogRect(hwndDlg , &r) ; int grpW = r.left ; int grpH = r.top ;
-				HWND liveGrpHwnd = GetDlgItem(hwndDlg , IDC_LIVEGRP) ;
-				SetWindowPos(liveGrpHwnd , NULL , 0 , 0 , grpW , grpH + growH , SWP_NOMOVE) ;
-				// map the new dimensions of the connect dialog
-				GetWindowRect(hwndDlg , &r) ; int dlgW = r.right - r.left ; int dlgH = r.bottom - r.top ;
-				SetWindowPos(hwndDlg , NULL , 0 , 0 , dlgW , dlgH + growH , SWP_NOMOVE) ;
-			}
+				{ KillTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER) ; updateQuickLoginButtons() ; }
 		break ;
 #endif GET_LIVE_JAMS
 
@@ -893,7 +901,7 @@ static void do_disconnect()
   }
 
 #if TEAMSTREAM
-	g_is_logged_in = false ; ToggleFavoritesMenu() ;
+	g_is_logged_in = false ; toggleFavoritesMenu() ;
 #endif TEAMSTREAM
 }
 
@@ -1370,7 +1378,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				// update popup handles
 				g_update_popup = CreateDialog(g_hInst , MAKEINTRESOURCE(IDD_UPDATE) , hwndDlg , NULL) ;
 
-				populateFavoritesMenu() ; ToggleFavoritesMenu() ;
+				populateFavoritesMenu() ; toggleFavoritesMenu() ;
 #endif TEAMSTREAM
 
         // initialize local channels from config
@@ -1625,7 +1633,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 					// set local user init timer
 					if (!g_is_logged_in && ns == NJClient::NJC_STATUS_OK)
 					{
-						g_is_logged_in = true ; ToggleFavoritesMenu() ;
+						g_is_logged_in = true ; toggleFavoritesMenu() ;
 						SetTimer(g_hwnd , IDT_LOCAL_USER_INIT_TIMER , LOCAL_USER_INIT_DELAY , NULL) ;
 					}
 #endif TEAMSTREAM_INIT
@@ -2059,7 +2067,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case ID_FAVORITES_SAVE1: case ID_FAVORITES_SAVE2: case ID_FAVORITES_SAVE3:
 				{
 					char* host ; string hostString(host = g_connect_host.Get()) ;
-					if (strlen(host) >= MAX_FAV_HOST_URL_LEN) break ;
+					if (strlen(host) >= MAX_HOST_LEN) break ;
 
 					if (g_fav_jam_1 == hostString)
 						g_fav_jam_1 = "Favorite 1" ;
@@ -2148,7 +2156,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 						char editText[4] ; Edit_GetText(editBox , (LPTSTR)editText , 4) ;
 						const int voteMsgLen = VOTE_CHAT_TRIGGER_LEN + 8 ;
 						char voteMsg[voteMsgLen] ; sprintf(voteMsg , "%s%s %s" , VOTE_CHAT_TRIGGER , voteType , editText) ;
-						SendChatMessage(voteMsg) ; Edit_SetText(editBox , (LPTSTR)"") ;
+						sendChatMessage(voteMsg) ; Edit_SetText(editBox , (LPTSTR)"") ;
 					}
 				break ;
 #endif TEAMSTREAM
@@ -2383,8 +2391,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_user.Set(buf);
     GetPrivateProfileString(CONFSEC,"pass","",buf,sizeof(buf),g_ini_file.Get());
     g_connect_pass.Set(buf);
-    g_connect_passremember=GetPrivateProfileInt(CONFSEC,"passrem",1,g_ini_file.Get());
-    g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
+    g_connect_passremember = GetPrivateProfileInt(CONFSEC , "passrem" , 0 , g_ini_file.Get()) ;
+    g_connect_anon = GetPrivateProfileInt(CONFSEC , "anon" , 1 , g_ini_file.Get()) ;
 
 		g_fav_jam_1 = TeamStream::ReadTeamStreamConfigString("fav_jam_1" , "Favorite 1") ;
 		g_fav_jam_2 = TeamStream::ReadTeamStreamConfigString("fav_jam_2" , "Favorite 2") ;
@@ -2423,6 +2431,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
 #if TEAMSTREAM
 	// GUI delegates
+#if GET_LIVE_JAMS
+	TeamStreamNet::Update_Quick_Login_Buttons = updateQuickLoginButtons ;
+#endif GET_LIVE_JAMS
+	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Set_Link_GUI = setLinkGUI ;
 #if TEAMSTREAM_W32_LISTVIEW
@@ -2430,11 +2442,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	TeamStream::Remove_From_Users_Listbox = removeFromUsersListbox ;
 	TeamStream::Reset_Users_Listbox = resetUsersListbox ;
 #endif TEAMSTREAM_W32_LISTVIEW
-	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
-	TeamStream::Get_Chat_Color = getChatColor ;
-	TeamStream::Send_Chat_Msg = SendChatMessage ;
-	TeamStream::Send_Chat_Pvt_Msg = SendChatPvtMessage ;
 	TeamStream::Clear_Chat = clearChat ;
+	TeamStream::Get_Chat_Color = getChatColor ;
+	TeamStream::Send_Chat_Msg = sendChatMessage ;
+	TeamStream::Send_Chat_Pvt_Msg = sendChatPvtMessage ;
 #endif TEAMSTREAM
 
   HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));

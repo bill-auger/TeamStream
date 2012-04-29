@@ -38,6 +38,9 @@
 #endif TEAMSTREAM
 
 #if HTTP_LISTENER || HTTP_POLL
+#if HTTP_POLL
+#define POLL_INTERVAL 10000 //5000
+#endif HTTP_POLL
 #define UPDATE_CHECK 1
 #define GET_LIVE_JAMS 1
 #endif HTTP_LISTENER || HTTP_POLL
@@ -113,7 +116,7 @@
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
 
 /* known hosts */
-#define MAX_FAV_HOST_URL_LEN 256
+#define MAX_HOST_LEN 256
 #define AUTOJOIN_FAIL "fail"
 #define MIN_PORT 2049
 #define MAX_PORT 2099
@@ -127,8 +130,7 @@
 #define HTTP_RESP_BUFF_SIZE 4096
 #define HTTP_READ_BUFF_SIZE 256
 #define VERSION_CHECK_URL "http://teamstream.heroku.com/version.txt"
-#define LIVE_JAMS_URL "http://teamstream.heroku.com/servers.text"
-#define POLL_URL VERSION_CHECK_URL
+#define POLL_URL "http://teamstream.heroku.com/servers.text"
 
 /* timers */
 #define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
@@ -151,9 +153,10 @@
 #define IsTeamStream GetTeamStreamState
 
 /* includes */
+#include <string>
+#include <sstream>
 #include "version.h"
 #include "windows.h"
-#include <string>
 #include "../WDL/ptrlist.h"
 #include "../WDL/string.h"
 #include "../WDL/jnetlib/jnetlib.h"
@@ -182,8 +185,17 @@ class TeamStreamNet
 #else HTTP_LISTENER
 #if HTTP_POLL
 		static DWORD WINAPI HttpPollThread(LPVOID p) ;
+#if GET_LIVE_JAMS
+		static void (*Update_Quick_Login_Buttons)() ;
+#endif GET_LIVE_JAMS
 #endif HTTP_POLL
 #endif HTTP_LISTENER
+
+		static std::string GetLiveJams() ;
+		static void SetLiveJams(std::string liveJams) ;
+
+	private:
+		static std::string m_live_jams ;
 } ;
 
 class TeamStreamUser
@@ -281,6 +293,7 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void SendChatColorChatMsg(bool isPrivate , char* destFullUserName) ;
 
 		// GUI delegates
+		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
 		static void (*Set_TeamStream_Mode_GUI)(int userId , bool isEnable) ;
 		static void (*Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 #if TEAMSTREAM_W32_LISTVIEW
@@ -288,11 +301,10 @@ static void CHAT(char* msg) { Send_Chat_Pvt_Msg(GetUserById(USERID_LOCAL)->m_ful
 		static void (*Remove_From_Users_Listbox)(char* username) ;
 		static void (*Reset_Users_Listbox)() ;
 #endif TEAMSTREAM_W32_LISTVIEW
-		static void (*Set_Bpi_Bpm_Labels)(char* bpiString , char* bpmString) ;
-		static COLORREF (*Get_Chat_Color)(int idx) ;
+		static void (*Clear_Chat)() ;
 		static void (*Send_Chat_Msg)(char* chatMsg) ;
 		static void (*Send_Chat_Pvt_Msg)(char* destFullUserName , char* chatMsg) ;
-		static void (*Clear_Chat)() ;
+		static COLORREF (*Get_Chat_Color)(int idx) ;
 
 	private:
 		// TeamStream users array

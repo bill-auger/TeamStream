@@ -170,6 +170,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../sdks/dxsdk/lib/x86"
+				IgnoreDefaultLibraryNames="/NODEFAULTLIB:libcmt"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/teamstream.pdb"
 				SubSystem="2"

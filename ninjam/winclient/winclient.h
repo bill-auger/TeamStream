@@ -75,12 +75,15 @@ void initTeamStreamUser(HWND hwndDlg , bool isEnable) ;
 // web server requests
 void checkServerForUpdate() ;
 void processAppUpdate(char* updateUrl) ;
-// GUI helpers
+// GUI functions
 void setFocusChat() ;
 void setBpiBpmLabels(char* bpiString , char* bpmString) ;
 void populateFavoritesMenu() ;
-void ToggleFavoritesMenu() ;
+void toggleFavoritesMenu() ;
 void setTeamStreamMenuItems() ;
+void updateQuickLoginButtons() ;
+void setTeamStreamModeGUI(int userId , bool isEnableTeamStream) ;
+void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 // GUI listView functions
 int getLinkIdxByBtnIdx(int btnIdx) ;
 int getBtnIdxByLinkIdx(int linkIdx) ;
@@ -94,12 +97,9 @@ void addToUsersListbox(char* username) ;
 void removeFromUsersListbox(char* username) ;
 // chat functions
 void clearChat() ;
-void SendChatMessage(char* chatMsg) ;
-void SendChatPvtMessage(char* destFullUserName , char* chatMsg) ;
+void sendChatMessage(char* chatMsg) ;
+void sendChatPvtMessage(char* destFullUserName , char* chatMsg) ;
 COLORREF getChatColor(int idx) ;
-// GUI functions
-void setTeamStreamModeGUI(int userId , bool isEnableTeamStream) ;
-void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 // teamstream window procs
 BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
 BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;

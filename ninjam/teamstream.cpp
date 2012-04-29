@@ -41,7 +41,6 @@ string TeamStreamNet::HttpGet(char* url)
 
 		if (get.get_status() > 0 && get.get_status() == 2)
 		{
-// in case we need larger responses (not likely)
 			int totalLen = 0 ; int len ;
       while ((len = get.bytes_available()) > 0)
       {
@@ -110,14 +109,44 @@ DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
 	{
 		string respString = net->HttpGet(POLL_URL) ;
 
-//char resp[MAX_HTTP_RESP_LEN] ; strcpy(resp , respString.c_str()) ; TeamStream::CHAT(resp);
+//char resp[HTTP_RESP_BUFF_SIZE] ; strcpy(resp , respString.c_str()) ; TeamStream::CHAT(resp);
 
-		Sleep(5000) ;
+		istringstream ssCsv(respString) ; string line ; string liveJams("") ;
+		while (getline(ssCsv , line))
+		{
+//char resp[HTTP_RESP_BUFF_SIZE] ; strcpy(resp , line.c_str()) ; TeamStream::CHAT(resp);
+
+			istringstream ssLine(line) ; string key ; getline(ssLine , key , ',') ; 
+			if (key == "TeamStream") ;// TODO:
+			else if (key == "linksReq") ;// TODO:
+			else if (key == "links") ;// TODO:
+			else if (key == "chatColor") ;// TODO:
+			else
+			{
+				char hostBuff[MAX_HOST_LEN] ; strncpy(hostBuff , key.c_str() , MAX_HOST_LEN) ;
+				char* host = strtok(hostBuff , ":") ;
+				if (TeamStream::ValidateHost(host , false)) { liveJams += line ; liveJams += '\n' ; }
+			}
+		}
+#if GET_LIVE_JAMS
+		if (m_live_jams != liveJams) { m_live_jams = liveJams ; Update_Quick_Login_Buttons() ; }
+#endif GET_LIVE_JAMS
+
+		Sleep(POLL_INTERVAL) ;
 	}
 	return 0 ;
 }
+
+#if GET_LIVE_JAMS
+void (*TeamStreamNet::Update_Quick_Login_Buttons)() = NULL ;
+#endif GET_LIVE_JAMS
 #endif HTTP_POLL
 #endif HTTP_LISTENER
+
+string TeamStreamNet::GetLiveJams() { return m_live_jams ; }
+
+void TeamStreamNet::SetLiveJams(string liveJams) { m_live_jams = liveJams ; }
+
 
 /* helpers */
 
@@ -158,6 +187,8 @@ WDL_String TeamStream::ParseCommandLineHost(LPSTR cmdParam)
 
 bool TeamStream::ValidateHost(char* host , bool isIncludeuserDefinedHosts)
 {
+	int len = strlen(host) ; if (!host || !len || len >= MAX_HOST_LEN) return false ;
+
 	// validate default hosts
 	int i = N_KNOWN_HOSTS ; while (i-- && m_known_hosts[i].compare(host)) ; bool isDefaultHost = (i > -1) ; 
 	if (isDefaultHost || !isIncludeuserDefinedHosts) return isDefaultHost ;
@@ -456,6 +487,9 @@ void (*TeamStream::Clear_Chat)() = NULL ;
 
 
 /* private menbers */
+
+// poll results
+string TeamStreamNet::m_live_jams("") ;
 
 // TeamStream users array
 WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
