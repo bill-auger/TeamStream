@@ -68,7 +68,8 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms);
 int licensecallback(int user32, char *licensetext);
 void licenseRun(HWND hwndDlg);
 
-/* winclient.cpp TeamStream functions */
+/* winclient.cpp  */
+
 // init
 void winInit() ;
 void initTeamStreamUser(HWND hwndDlg , bool isEnable) ;
@@ -81,7 +82,6 @@ void setBpiBpmLabels(char* bpiString , char* bpmString) ;
 void populateFavoritesMenu() ;
 void toggleFavoritesMenu() ;
 void setTeamStreamMenuItems() ;
-void updateQuickLoginButtons() ;
 void setTeamStreamModeGUI(int userId , bool isEnableTeamStream) ;
 void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 // GUI listView functions
@@ -95,13 +95,15 @@ void resetUsersListbox() ;
 void SetUsersListbox() ;
 void addToUsersListbox(char* username) ;
 void removeFromUsersListbox(char* username) ;
+BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
+// quick connect bar functions
+void updateQuickLoginButtons(bool isForce) ;
+static BOOL WINAPI QuickLoginBarProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
 // chat functions
 void clearChat() ;
 void sendChatMessage(char* chatMsg) ;
 void sendChatPvtMessage(char* destFullUserName , char* chatMsg) ;
 COLORREF getChatColor(int idx) ;
-// teamstream window procs
-BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
 BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
 
 #endif//_WINCLIENT_H_

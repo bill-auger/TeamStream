@@ -37,16 +37,14 @@
 #define IS_CHAT_LINKS 1
 #endif TEAMSTREAM
 
-#if HTTP_LISTENER || HTTP_POLL
 #if HTTP_POLL
-#define POLL_INTERVAL 10000 //5000
-#endif HTTP_POLL
-#define UPDATE_CHECK 1
 #define GET_LIVE_JAMS 1
-#endif HTTP_LISTENER || HTTP_POLL
+#define LIVE_JAMS_CLEAN_FLAG "clean"
+#endif HTTP_POLL
 
+#define UPDATE_CHECK 0
 #define AUTO_ACCEPT_LICENSE 1
-#define AUTO_JOIN 1
+#define AUTO_JOIN 0
 #define CHAT_MUTEX_CENTRALIZED 1
 #define HORIZ_RESIZE 0 // buggy
 #define CLICKABLE_URLS_IN_CHAT 1
@@ -115,16 +113,18 @@
 #define LINKS_REQ_CHAT_TRIGGER "!reqlinks "
 #define LINKS_REQ_CHAT_TRIGGER_LEN 10
 
-/* known hosts */
+/* hosts */
+#define N_FAVORITE_HOSTS 3
 #define MAX_HOST_LEN 256
 #define AUTOJOIN_FAIL "fail"
 #define MIN_PORT 2049
 #define MAX_PORT 2099
 #define UNKNOWN_HOST_MSG "Sorry, the ninjam:// link that you clicked does not point to a known public server. If you would like to be able to auto-join this server; you must add it to your list of trusted servers in CONFIG (TODO:)."
-#define N_KNOWN_HOSTS 3
+#define N_KNOWN_HOSTS 4
 #define KNOWN_HOST_NINJAM "ninjam.com"
 #define KNOWN_HOST_NINBOT "ninbot.com"
 #define KNOWN_HOST_NINJAMER "ninjamer.com"
+#define KNOWN_HOST_MUCKL "muckl.dyndns.org"
 
 /* http requests */
 #define HTTP_RESP_BUFF_SIZE 4096
@@ -135,6 +135,10 @@
 /* timers */
 #define WIN_INIT_DELAY 1000 // for IDT_WIN_INIT_TIMER
 #define AUTO_JOIN_DELAY 1000 // for IDT_AUTO_JOIN_TIMER
+#if HTTP_POLL
+#define POLL_INTERVAL 10000 // for IDT_GET_LIVE_JAMS_TIMER and webserver poll
+#define GET_LIVE_JAMS_DELAY 2000 // delay for first read
+#endif HTTP_POLL
 #define LOCAL_USER_INIT_DELAY 1000 // for IDT_LOCAL_USER_INIT_TIMER
 #define GET_LIVE_JAMS_DELAY 1000 // for IDT_GET_LIVE_JAMS_TIMER
 #define LINKS_CHAT_DELAY 1000 // for IDT_LINKS_CHAT_TIMER
@@ -183,19 +187,22 @@ class TeamStreamNet
 // NOTE: to avoid firewall issues we most likely won't use this
 		static DWORD WINAPI HttpListenThread(LPVOID p) ;
 #else HTTP_LISTENER
-#if HTTP_POLL
-		static DWORD WINAPI HttpPollThread(LPVOID p) ;
 #if GET_LIVE_JAMS
-		static void (*Update_Quick_Login_Buttons)() ;
-#endif GET_LIVE_JAMS
-#endif HTTP_POLL
-#endif HTTP_LISTENER
+		static DWORD WINAPI HttpPollThread(LPVOID p) ;
 
-		static std::string GetLiveJams() ;
-		static void SetLiveJams(std::string liveJams) ;
+		// quick login buttons GUI delegates
+		static void (*Do_Connect)() ;
+		static void (*Do_Disconnect)() ;
+
+		static std::string GetLiveJams(bool isForce) ;
 
 	private:
+		static void SetLiveJams(std::string liveJams) ;
+
 		static std::string m_live_jams ;
+		static bool m_live_jams_dirty ;
+#endif GET_LIVE_JAMS
+#endif HTTP_LISTENER
 } ;
 
 class TeamStreamUser

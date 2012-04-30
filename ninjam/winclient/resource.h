@@ -172,11 +172,14 @@
 #define IDC_CONNECT															6012
 #define IDC_CANCEL															6013		
 
+// quick login bar
+#define IDD_QUICKLOGINBAR												7000
+
 // timers
 #define IDT_WIN_INIT_TIMER											10000
 #define IDT_AUTO_JOIN_TIMER											10001
-#define IDT_LOCAL_USER_INIT_TIMER								10002
-#define IDT_GET_LIVE_JAMS_TIMER									10003
+#define IDT_GET_LIVE_JAMS_TIMER									10002
+#define IDT_LOCAL_USER_INIT_TIMER								10003
 #define IDT_LINKS_CHAT_TIMER										10004
 
 // menu items

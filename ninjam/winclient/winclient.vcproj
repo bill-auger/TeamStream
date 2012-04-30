@@ -105,7 +105,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="cd ..\..\build&#x0D;&#x0A;build.bat"
+				CommandLine="cd ..\..\build&#x0D;&#x0A;build.bat&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 		</Configuration>
@@ -170,7 +170,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../sdks/dxsdk/lib/x86"
-				IgnoreDefaultLibraryNames="/NODEFAULTLIB:libcmt"
+				IgnoreDefaultLibraryNames="/NODEFAULTLIB:LIBCMT"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/teamstream.pdb"
 				SubSystem="2"

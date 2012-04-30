@@ -129,7 +129,8 @@ DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
 			}
 		}
 #if GET_LIVE_JAMS
-		if (m_live_jams != liveJams) { m_live_jams = liveJams ; Update_Quick_Login_Buttons() ; }
+		SetLiveJams(liveJams) ;
+// Update_Quick_Login_Buttons() ; }
 #endif GET_LIVE_JAMS
 
 		Sleep(POLL_INTERVAL) ;
@@ -137,15 +138,14 @@ DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
 	return 0 ;
 }
 
-#if GET_LIVE_JAMS
-void (*TeamStreamNet::Update_Quick_Login_Buttons)() = NULL ;
-#endif GET_LIVE_JAMS
-#endif HTTP_POLL
-#endif HTTP_LISTENER
+string TeamStreamNet::GetLiveJams(bool isForce)
+{
+	if (!m_live_jams_dirty && !isForce) return LIVE_JAMS_CLEAN_FLAG ;
+	else { m_live_jams_dirty = false ; return m_live_jams ; }	
+}
 
-string TeamStreamNet::GetLiveJams() { return m_live_jams ; }
-
-void TeamStreamNet::SetLiveJams(string liveJams) { m_live_jams = liveJams ; }
+void TeamStreamNet::SetLiveJams(string liveJams)
+	{ if (m_live_jams != liveJams) { m_live_jams = liveJams ; m_live_jams_dirty = true ; } }
 
 
 /* helpers */
@@ -472,6 +472,13 @@ void TeamStream::SendChatColorChatMsg(bool isPrivate , char* destFullUserName)
 
 /* GUI delegates */
 
+#if GET_LIVE_JAMS
+void (*TeamStreamNet::Do_Connect)() = NULL ;
+void (*TeamStreamNet::Do_Disconnect)() = NULL ;
+#endif GET_LIVE_JAMS
+#endif HTTP_POLL
+#endif HTTP_LISTENER
+
 void (*TeamStream::Set_TeamStream_Mode_GUI)(int userId , bool isEnable) = NULL ;
 void (*TeamStream::Set_Link_GUI)(int userId , char* username , int linkIdx , int prevLinkIdx) = NULL ;
 #if TEAMSTREAM_W32_LISTVIEW
@@ -490,13 +497,15 @@ void (*TeamStream::Clear_Chat)() = NULL ;
 
 // poll results
 string TeamStreamNet::m_live_jams("") ;
+bool TeamStreamNet::m_live_jams_dirty = false ;
 
 // TeamStream users array
 WDL_PtrList<TeamStreamUser> TeamStream::m_teamstream_users ; int TeamStream::m_next_id = 0 ;
 TeamStreamUser* TeamStream::m_bogus_user = new TeamStreamUser(USERNAME_NOBODY , USERID_NOBODY , CHAT_COLOR_DEFAULT , USERNAME_NOBODY) ;
 
 // known hosts array
-string TeamStream::m_known_hosts[] = { KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER } ;
+string TeamStream::m_known_hosts[] =
+	{ KNOWN_HOST_NINJAM , KNOWN_HOST_NINBOT , KNOWN_HOST_NINJAMER , KNOWN_HOST_MUCKL } ;
 
 // program state flags
 bool TeamStream::m_first_login = true ;
