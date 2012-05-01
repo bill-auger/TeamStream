@@ -1,9 +1,10 @@
 TeamStream clients and server (http://teamstream.heroku.com/)
 -------------------------------------------------------------
 
-TeamStream allows musicians to play music together over the internet in the 
-standard multi-directional NINJAM configuration or in a linear chain-streaming
-configuration and is based on the excellent NINJAM softwares (http://ninjam.com/).
+TeamStream allows musicians to play music together over the internet.
+It is based on the excellent NINJAM softwares (http://ninjam.com/) and allows
+free-form improvisation in the standard multi-directional NINJAM configuration
+or more structured performances in a linear chain-streaming configuration.
 Visit the TeamStream homepage (http://teamstream.heroku.com/) for details.
 
 Features available in all jam rooms:
@@ -12,12 +13,12 @@ Features available in all jam rooms:
   Redesigned sleeker GUI - view all jammers without scrolling on most screens
   Buttons for bpi/bpm voting
   Colored chat text with clickable web url links
-	Automatically accept server licenses after initially agreeing
+  Automatically accept server licenses after initially agreeing
   Create desktop shortcuts for favorite jam rooms
   One-click login buttons for saving favorite jam rooms
   One-click login buttons for currently active jam rooms updated in real-time
   Launch TeamStream and join a jam room automatically by clicking a link on a webpage
-	The TeamStream homepage offers a directory of links to all known public jam rooms
+  The TeamStream homepage offers a directory of links to all known public jam rooms
 
 Features available in TeamStream jam rooms only:
   TeamStreaming - What is TeamStreaming? See http://teamstream.heroku.com/about.html
