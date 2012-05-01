@@ -105,7 +105,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="cd ..\..\build&#x0D;&#x0A;build.bat&#x0D;&#x0A;"
+				CommandLine=""
 				ExcludedFromBuild="false"
 			/>
 		</Configuration>

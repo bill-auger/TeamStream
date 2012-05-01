@@ -88,6 +88,7 @@ static bool g_auto_join = false ; // flag for timer delay
 static string g_fav_host_1 , g_fav_host_2 , g_fav_host_3 ; // favorite hosts e.g. "localhost:2049"
 static map<HWND,HWND> g_quick_login_connect_btns ; // <btnHwnd , lblHwnd>
 static HWND g_quick_login_bar ; map<HWND,string> g_quick_login_bar_btns ; // <btnHwnd , userList>
+POINT g_connect_dims ; // default dimensions for resizing connect dialog
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
 static HWND g_color_picker_toggle , g_color_picker , g_color_btn_hwnds[N_CHAT_COLORS] ;
@@ -226,7 +227,7 @@ void populateFavoritesMenu()
 void toggleFavoritesMenu()
 {
 	UINT flags = MF_BYPOSITION | ((g_is_logged_in)? MF_ENABLED : MF_GRAYED) ;
-	EnableMenuItem(GetMenu(g_hwnd) , 2 , flags) ;
+	EnableMenuItem(GetMenu(g_hwnd) , 2 , flags) ; DrawMenuBar(g_hwnd) ;
 }
 
 void setTeamStreamMenuItems()
@@ -571,14 +572,12 @@ void updateQuickLoginButtons(bool isForce)
 	// resize groupbox and connect dialog and shift 'Connect' and 'Cancel' buttons
 	// hard coded heights accommodate one button height for label so grow by (nServers - 1)
 	int expandH = (!nServers)? 0 : (btnH * (nServers - 1)) ;
-
 	// map the new dimensions of the groupbox
 	r.left = 250  ; r.top = 28 ; MapDialogRect(hwndConnectDlg , &r) ; int grpW = r.left ; int grpH = r.top ;
 	HWND hwndLiveGrp = GetDlgItem(hwndConnectDlg , IDC_LIVEGRP) ;
 	SetWindowPos(hwndLiveGrp , NULL , 0 , 0 , grpW , grpH + expandH , SWP_NOMOVE) ;
-	// map the new dimensions of the connect dialog
-	GetWindowRect(hwndConnectDlg , &r) ; int dlgW = r.right - r.left ; int dlgH = r.bottom - r.top ;
-	SetWindowPos(hwndConnectDlg , NULL , 0 , 0 , dlgW , dlgH + expandH , SWP_NOMOVE) ;
+	// resize the connect dialog based on default dims
+	SetWindowPos(hwndConnectDlg , NULL , 0 , 0 , g_connect_dims.x , g_connect_dims.y + expandH , SWP_NOMOVE) ;
 	// map the new x and y of the 'Connect' (left/top) and 'Cancel' (right/bottom) buttons
 	r.left = 148 ; r.top = 108 ; r.right = 204 ; r.bottom = 108 ; MapDialogRect(hwndConnectDlg , &r) ;
 	int connectX = r.left ; int connectY = r.top ; int cancelX = r.right ; int cancelY = r.bottom ;
@@ -845,6 +844,10 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 				SetWindowText(favBtn2 , g_fav_host_2.c_str()) ;
 				SetWindowText(favBtn3 , g_fav_host_3.c_str()) ;
 
+				// store default dialog dimensions including title and borders for resizing
+				RECT r ; GetWindowRect(hwndDlg , &r) ;
+				g_connect_dims.x = (r.right - r.left) ; g_connect_dims.y = (r.bottom - r.top) ;
+
 #if GET_LIVE_JAMS
 				SetDlgItemText(hwndDlg , IDC_LIVELBL , "Searching ....") ;
 				SetTimer(hwndDlg , IDT_GET_LIVE_JAMS_TIMER , GET_LIVE_JAMS_DELAY , NULL) ;
@@ -935,10 +938,9 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
         break;
       }
     return 0;
-    case WM_CLOSE:
-      EndDialog(hwndDlg,0);
-    return 0;
-		case WM_DESTROY: g_quick_login_connect_btns.empty() ; break ;
+
+    case WM_CLOSE: EndDialog(hwndDlg , 0) ; return 0 ;
+		case WM_DESTROY: g_quick_login_connect_btns.empty() ; return 0 ;
   }
   return 0;
 }
@@ -1869,12 +1871,10 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
       if (wParam != SIZE_MINIMIZED) 
       {
         resize.onResize(NULL,1); // don't actually resize, just compute the rects
+				RECT new_rect ; GetClientRect(hwndDlg , &new_rect) ;
 
         // adjust our resized items to keep minimums in order
         {
-          RECT new_rect;
-          GetClientRect(hwndDlg,&new_rect);
-
           RECT m_orig_rect=resize.get_orig_rect();
           WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
           if (rec)
@@ -1913,6 +1913,21 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
         resize.onResize();
         if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
         if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
+
+				// map dialog units to pixels for moving quick login bar
+				RECT offsetR ; offsetR.left = 130 ; offsetR.right = 203 ; offsetR.top = 14 ; offsetR.bottom = 12 ;
+				MapDialogRect(hwndDlg , &offsetR) ;
+				int newX = offsetR.left ; int newY = new_rect.bottom - offsetR.top ;
+				int newW = new_rect.right - offsetR.right ; int newH = offsetR.bottom ;				
+				SetWindowPos(g_quick_login_bar , NULL , newX , newY , newW , newH , NULL) ;
+
+				if (g_color_picker)
+				{
+					// TODO: map dialog units to pixels for moving color picker (also upon creation)
+					RECT toggleRect ; GetWindowRect(g_color_picker_toggle , &toggleRect) ;
+					int x = toggleRect.left - 144 ; int y = toggleRect.bottom - 26 ;
+					SetWindowPos(g_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
+				}
       }
       if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) 
       {
@@ -2198,15 +2213,21 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 					char* host ; string hostString(host = g_connect_host.Get()) ;
 					if (strlen(host) >= MAX_HOST_LEN) break ;
 
-					if (g_fav_host_1 == hostString)
+					if (!g_fav_host_1.compare(hostString))
+					{
 						g_fav_host_1 = "Favorite 1" ;
 						TeamStream::WriteTeamStreamConfigString("fav_host_1" , "Favorite 1") ;
-					if (g_fav_host_2 == hostString)
+					}
+					if (!g_fav_host_2.compare(hostString))
+					{
 						g_fav_host_2 = "Favorite 2" ;
 						TeamStream::WriteTeamStreamConfigString("fav_host_2" , "Favorite 2") ;
-					if (g_fav_host_3 == hostString)
+					}
+					if (!g_fav_host_3.compare(hostString))
+					{
 						g_fav_host_3 = "Favorite 3" ;
 						TeamStream::WriteTeamStreamConfigString("fav_host_3" , "Favorite 3") ;
+					}
 					switch (LOWORD(wParam))
 					{
 						case ID_FAVORITES_SAVE1:
@@ -2248,6 +2269,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 				case IDC_COLORTOGGLE:
 				{
 // see issue #1
+// TODO: i think the solution to issue #1 maybe to create and destroy the color picker rather than show/hide
 //					setFocusChat() ;
 					if (!TeamStream::IsTeamStream()) break ;
 
