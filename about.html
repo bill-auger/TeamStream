@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TeamStream Homepage</title>
+</head>
+
+<body>
+
+	<div id="aboutDiv">
+
+	<pre>
+
+Motivation
+----------
+
+Once upon a time in the bad old days of pre-Twenty-naught when the internet still ran on hamster power, the first clever internet musicians attempted long-distance musical collaboration using such Fred Flintstone inspired methods as placing their telephone handsets in front of their guitar amps and jamming a nickel in the F9 key so that the listeners on Paltalk could enjoy their sewer pipe encoded echos in awesome 8-bit fidelity. With the introduction of Shoutcast/Icecast, the sound quality improved dramatically and the word 'lag' acquired its modern definition. Since then, this has been the standard tool for 'chain-streaming' but it has some severe limitations of which anyone who has tried it is aware. If you are one of them, you can probably skip this next section.
+
+
+A (not-so) breif primer on Chain-Streaming
+------------------------------------------
+
+Traditional chain-streaming works like so:
+Jammer 'A' (the 'leader' of the chain) plays his/her instrument and streams the captured audio out to their server using encoding software such as BUTT. Jammer 'B' tunes into their stream with the favorite media player such as VLC and plays their instrument along with them while capturing the combined sound with their encoder and streaming it to their server. There may also be a jammer "C" jamming along with the combined audio of "A" and "B" by tunung into "B"'s stream while capuring and streaming out the combined result of "A", "B", and "C" to their server. This could in theory go on infinately (... in theory).
+
+Although its fairly simply to understand, in practice it can be quite a chore to accomplish especially for non-technical peeps (PC mixer adjustments, setting capture to wave-out etc.) and to get a decent mix to the listeners is difficult even for experienced nerds. The biggest problem is that the audio is typically compressed when encoded because most internet connections do not have enough bandwidth to transmit the full uncomressed signal. This is compounded by the fact that each link in the chain must first decompress (decode) the audio and then re-compress it before pushing it out to the next. This results in a noticiable deterioration of the sound quiality after very few encodings. So you may say, "Let's just get everyone a fiber line and forget about compression.". That would help; but even so, the re-capturing of uncompressed audio will inevitably intrcoduce artifacts into the mix. If you have ever made a photo-copy of a photo-copy of a photo-copy or a hi-speed dubbed copy of a hi-speed dubbed copy of you friend's motley crew tape you will get the basic idea here.
+
+If this weren't bad enough, one of the more annoying facets of chain-streaming is that there are long buffering delays between each jammer so that it is not uncommon in a virtual band configuration for the jammer at the tail of the chain to lag a minute or so behind the head; so if any coordination is to be done (such as "What should we play next?"), the head must wait in silence until the tail has finished playing before any feedback or coordination can take place. Keep in mind that the head of the chain can not hear anyone else so any such communication must be done through other channels such as chat. This leads to long pauses between tunes for anyone listening to the final mix and a lot of idle foot-tapping and thumb twiddling; a general buzz-kill for all involved.
+
+
+And then there was NINJAM
+-------------------------
+
+... and NINJAM is bliss. Regardless of the communication technologies used, physics govern the speed of the photons and electrons that they all rely on to transmit informatinon. Even at the speed of light, there some measurable time difference between endpoints. The delay is typically on the order of miliseconds which may not sound like much but as anyone who has used a guitar processor from the 80's would know, a delay as little as 10-50ms from the time you play a note until you hear it is noticable and quite annoying. Though some softwares exist that allow real-time multi-user audio (most notable llcon) the latencies involved make them unsuitable for serious musical collaboration unless everyone in the jam in on the same local network with very low latency. Of course, that most likely means they are all in the same building and so jamming over an intranet is just plain nerdy. Alas, true real-time music collaboration on the internet is not and will never be possible but NINJAM brilliantly overcomes this and the inadequacy a chain-streaming by embracing the lag.
+
+
+Embracing the lag
+-----------------
+
+NINJAM works by artificially extending the delay to a precise length of time and slicing the interval into beats demarked by a metronome so that all clients have time to syncronize all of the incoming streams. Everyone plays along to the same metronome so that what is finally heard although not real-time is at least 'in-time'; and because the beats and measures of each interval precisely align with the previous interval, it can be thought of as pseudo-real-time. The NINJAM server mediates the entire process delivers first generation audio to everyone. This also allows all participants to hear all the others with the ability to adjust the volume of each incoming channel individually and no re-encoding is necessary. A 6 person jam on NINJAM will sound far better that even the most commendable production using shoutcast. 
+
+However, it may not be what you expected if you go in thinking of it linearly in terms of songs (verse/chorus/bridge). Many first-time users find it quirky if not confusing and you must acclimate yoursef to the idea that no one knows what anyone else is playing at the moment. For this reason NINJAM is not as attractive to the strummers and crooners amoung us who may enjoy chain-streaming more predictable material with their pals. Although this type of linear song structure is feasible with very long intervals; NINJAM is best suited for open-ended improvisational jams and thus the bliss.
+
+The goal of Teamstream is to bridge together these disperate groups of internet musicians, to overcome the hastles and limitations of chain-streaming, and to make NINJAM easier to use for non-techies.
+ 
+
+What is TeamStreaming
+---------------------
+
+In a nutshell, TeamStreaming is chain-streaming using NINJAM technology. TeamStream is a customized NINJAM client fully compatible with all known NINJAM jam rooms when in NINJAM mode. In TeamStream mode it allows the experience of traditional linear chain-streaming with the advantages that NINJAM offers such as pristine audio with minimal delay from head to tail and individual mixing per user and per channel.
+
+It is not necessary for everyone to have a shoutcast stream. If you wish to broadcast the jam to others then only the jammer at the tail of the chain would need to stream to a shoutcast/icecast server. Above all, no re-encoding is done so everyone including the final mix will here pristine copies of all channels. Unlike Shoutcast encoders which typically are fixed to 2 channels; each jammer can feed as many or as few channels as they like. The number of jammers/channels is limited only by bandwidth. This means that someone with a slower connection can stream one mono channel using as little as 64k bandwith and it will sound as good as a 128k shoutcast stream. Also unlike Shoutcast servers, most of which only support mp3; TeamStream uses ogg vorbis which sounds noticably better than mp3 at equivelant bitrates.
+
+NOTE: TeamStream mode is currently disabled while on public NINJAM servers though this may change in the future. For now, in order to TeamStream, someone on the team must install a NINJAM server. No worries, it's simple to do.
+
+		</pre>
+
+	</div>
+
+</body>
+</html>

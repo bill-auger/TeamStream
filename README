@@ -1,26 +1,26 @@
 TeamStream clients and server (http://teamstream.heroku.com/)
 -------------------------------------------------------------
 
-TeamStream allows musicians to play music together over the internet
-and is based on the excellent NINJAM softwares (http://ninjam.com/).
-TeamStream is fully compatible with NINJAM servers when in NINJAM mode.
-TeamStream mode is currently disabled while on public NINJAM servers 
-though this may change in the future. For now, in order to fully utilize
-all TeamStream related capabilities, you must install your own NINJAM server.
-Visit the TeamStream HomePage (http://teamstream.heroku.com/) for details.
+TeamStream allows musicians to play music together over the internet in the 
+standard multi-directional NINJAM configuration or in a linear chain-streaming
+configuration and is based on the excellent NINJAM softwares (http://ninjam.com/).
+Visit the TeamStream homepage (http://teamstream.heroku.com/) for details.
 
-Features:
-  Includes all the standard NINJAM features (sans the integrated FX)
+Features available in all jam rooms:
   Fully compatible with all known public NINJAM jam rooms
+  Includes all the standard NINJAM features you love (sans the integrated FX)
   Redesigned sleeker GUI - view all jammers without scrolling on most screens
   Buttons for bpi/bpm voting
   Colored chat text with clickable web url links
+	Automatically accept server licenses after initially agreeing
   Create desktop shortcuts for favorite jam rooms
   One-click login buttons for saving favorite jam rooms
-  One-click login buttons for currently active jam rooms
-  Launch TeamStream and join a jam by clicking a webpage link or desktop shortcut
-  Automatically accept server licenses after initially agreeing
-  TeamStreaming (:yay:) - What is TeamStreaming? See http://teamstream.heroku.com/
+  One-click login buttons for currently active jam rooms updated in real-time
+  Launch TeamStream and join a jam room automatically by clicking a link on a webpage
+	The TeamStream homepage offers a directory of links to all known public jam rooms
+
+Features available in TeamStream jam rooms only:
+  TeamStreaming - What is TeamStreaming? See http://teamstream.heroku.com/about.html
 
 Grab the latest build here -->
   https://github.com/downloads/mr-jonze/TeamStream/TeamStream.msi
@@ -72,7 +72,7 @@ which itself is a fork of the original NINJAM software (http://www.ninjam.com/).
 The original softwares are available at the respective websites and also mirrored
 in this repo in the Downloads section.
 
-The original source trees were taken from http://www.ninjam.com/. The msot notable
+The original source trees were taken from http://www.ninjam.com/. The most notable
 modification to the Windows client from the Wahjam fork is the removal of the
 proprietary integrated effects processor for which no documentation nor source code
 was available. As of May 2012, the server is unmodified from the original version
