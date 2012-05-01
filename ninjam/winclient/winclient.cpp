@@ -86,7 +86,7 @@ static bool g_kick_duplicate_username = true ; // enforce unique usernames
 static bool g_auto_join = false ; // flag for timer delay
 
 static string g_fav_host_1 , g_fav_host_2 , g_fav_host_3 ; // favorite hosts e.g. "localhost:2049"
-static map<HWND,string> g_quick_login_connect_btns ; // <btnHwnd , userList>
+static map<HWND,HWND> g_quick_login_connect_btns ; // <btnHwnd , lblHwnd>
 static HWND g_quick_login_bar ; map<HWND,string> g_quick_login_bar_btns ; // <btnHwnd , userList>
 static HWND g_horiz_split , g_vert_split ;
 static HWND g_chat_display ;
@@ -463,7 +463,8 @@ void updateQuickLoginButtons(bool isForce)
 
 	// destroy any existing buttons on the quick login bar
 	for (map<HWND,string>::iterator it = g_quick_login_bar_btns.begin() ; it != g_quick_login_bar_btns.end() ;)
-		{ DestroyWindow((*it).first) ; g_quick_login_bar_btns.erase((*it++).first) ; }
+//		{ DestroyWindow((*it).first) ; g_quick_login_bar_btns.erase((*it++).first) ; }
+{ DestroyWindow((*it).first) ; g_quick_login_bar_btns.erase(it++) ; }
 
 	HWND connectDlgHwnd = FindWindow(NULL , TEXT("TeamStream Connection Configuration")) ;
 	if (connectDlgHwnd)
@@ -472,9 +473,14 @@ void updateQuickLoginButtons(bool isForce)
 		HWND favBtn1 = GetDlgItem(connectDlgHwnd , IDC_FAVBTN1) ;
 		HWND favBtn2 = GetDlgItem(connectDlgHwnd , IDC_FAVBTN2) ;
 		HWND favBtn3 = GetDlgItem(connectDlgHwnd , IDC_FAVBTN3) ;
-		for (map<HWND,string>::iterator it = g_quick_login_connect_btns.begin() ; it != g_quick_login_connect_btns.end() ;)
+		for (map<HWND,HWND>::iterator it = g_quick_login_connect_btns.begin() ; it != g_quick_login_connect_btns.end() ;)
 			if((*it).first == favBtn1 || (*it).first == favBtn2 || (*it).first == favBtn3) ++it ;
-			else { DestroyWindow((*it).first) ; g_quick_login_connect_btns.erase((*it++).first) ; }
+			else
+			{
+				DestroyWindow((*it).first) ; DestroyWindow((*it).second) ;
+//				g_quick_login_connect_btns.erase((*it++).first) ;
+g_quick_login_connect_btns.erase(it++) ;
+			}
 
 		// map dialog units to pixels for new connect dialog buttons
 		r ; r.left = 10 ; r.top = 84 ; r.right = 88 ; r.bottom = 96 ; MapDialogRect(connectDlgHwnd , &r) ;
@@ -514,14 +520,15 @@ void updateQuickLoginButtons(bool isForce)
 			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WM_SETFONT ,
 			btnX , connectY , btnW , btnH , connectDlgHwnd , (HMENU)IDC_LIVEBTN , g_hInst , NULL) ;
 		SendMessage(quickLoginBtn , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
-		g_quick_login_connect_btns.insert(pair<HWND,string>(quickLoginBtn , server)) ;
 		// users list
 		sprintf(usersMsg , "%d jammers: " , nUsers) ; strncat(usersMsg , usersCsv.c_str() , 1000) ;
 		HWND quickLoginLbl = CreateWindow("STATIC" , usersMsg ,
 			WS_VISIBLE | WS_CHILD | SS_LEFT | SS_WORDELLIPSIS ,
 			lblX , connectY + lblY , lblW , lblH , connectDlgHwnd , (HMENU)IDC_LIVELBL , g_hInst , NULL) ;
 		SendMessage(quickLoginLbl , WM_SETFONT , (WPARAM)hFont , MAKELPARAM(TRUE, 0)) ;
+		g_quick_login_connect_btns.insert(pair<HWND,HWND>(quickLoginBtn , quickLoginLbl)) ;
 
+/* TODO: set tooltip directly instead 
 		// modify hover text for existing fav host button
 		HWND btnHwnd ;
 		if (!server.compare(g_fav_host_1)) btnHwnd = GetDlgItem(connectDlgHwnd , IDC_FAVBTN1) ;
@@ -530,7 +537,8 @@ void updateQuickLoginButtons(bool isForce)
 		else continue ;
 
 		map<HWND,string>::iterator it = g_quick_login_connect_btns.find(btnHwnd) ;
-		if (it != g_quick_login_connect_btns.end()) g_quick_login_connect_btns[btnHwnd] = usersMsg ;
+//		if (it != g_quick_login_connect_btns.end()) g_quick_login_connect_btns[btnHwnd] = usersMsg ;
+*/
 	}
 
 	// print connect dialog labels
@@ -539,24 +547,24 @@ void updateQuickLoginButtons(bool isForce)
 	SetDlgItemText(connectDlgHwnd , IDC_LIVEGRP , grpLbl) ;
 	SetDlgItemText(connectDlgHwnd , IDC_LIVELBL , "None") ; // covered if (nServers)
 
-	if (nServers < 2) { g_client_mutex.Leave() ; return ; }
-
 	// resize groupbox and connect dialog and shift 'Connect' and 'Cancel' buttons
-	int growH = (btnH * (nServers - 1)) ;
+	// hard coded heights accommodate one button height for label so grow by (nServers - 1)
+	int expandH = (!nServers)? 0 : (btnH * (nServers - 1)) ;
+
 	// map the new dimensions of the groupbox
 	r.left = 250  ; r.top = 28 ; MapDialogRect(connectDlgHwnd , &r) ; int grpW = r.left ; int grpH = r.top ;
 	HWND liveGrpHwnd = GetDlgItem(connectDlgHwnd , IDC_LIVEGRP) ;
-	SetWindowPos(liveGrpHwnd , NULL , 0 , 0 , grpW , grpH + growH , SWP_NOMOVE) ;
+	SetWindowPos(liveGrpHwnd , NULL , 0 , 0 , grpW , grpH + expandH , SWP_NOMOVE) ;
 	// map the new dimensions of the connect dialog
 	GetWindowRect(connectDlgHwnd , &r) ; int dlgW = r.right - r.left ; int dlgH = r.bottom - r.top ;
-	SetWindowPos(connectDlgHwnd , NULL , 0 , 0 , dlgW , dlgH + growH , SWP_NOMOVE) ;
+	SetWindowPos(connectDlgHwnd , NULL , 0 , 0 , dlgW , dlgH + expandH , SWP_NOMOVE) ;
 	// map the new x and y of the 'Connect' (left/top) and 'Cancel' (right/bottom) buttons
 	r.left = 148 ; r.top = 108 ; r.right = 204 ; r.bottom = 108 ; MapDialogRect(connectDlgHwnd , &r) ;
 	int connectX = r.left ; int connectY = r.top ; int cancelX = r.right ; int cancelY = r.bottom ;
 	HWND connectBtnHwnd = GetDlgItem(connectDlgHwnd , IDC_CONNECT) ;
-	SetWindowPos(connectBtnHwnd , NULL , connectX , connectY + growH , 0 , 0 , SWP_NOSIZE) ;
+	SetWindowPos(connectBtnHwnd , NULL , connectX , connectY + expandH , 0 , 0 , SWP_NOSIZE) ;
 	HWND cancelBtnHwnd = GetDlgItem(connectDlgHwnd , IDC_CANCEL) ;
-	SetWindowPos(cancelBtnHwnd , NULL , cancelX , cancelY + growH , 0 , 0 , SWP_NOSIZE) ;
+	SetWindowPos(cancelBtnHwnd , NULL , cancelX , cancelY + expandH , 0 , 0 , SWP_NOSIZE) ;
 
 	g_client_mutex.Leave() ;
 }
@@ -565,11 +573,19 @@ static BOOL WINAPI QuickLoginBarProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , 
 {
 	switch (uMsg)
 	{
+		case WM_INITDIALOG:
+		{
+/* TODO: tooltips
+HWND ToolTipWnd = CreateWindow(TOOLTIPS_CLASS , NULL , WS_POPUP , 0 , 0 , 0 , 0 , hwndDlg , NULL , g_hInst , 0) ;
+if (ToolTipWnd != NULL) SendMessage(ToolTipWnd , TTM_ACTIVATE , TRUE , 0) ;
+*/
+		}
+		break ;
 		case WM_COMMAND:
 		{
 			// trap quick login buttons
-			HWND quickLoginBtnHwnd = (HWND)lParam ; map<HWND,string>::iterator it ;
-			if ((it = g_quick_login_bar_btns.find(quickLoginBtnHwnd)) != g_quick_login_bar_btns.end())
+			HWND btnHwnd = (HWND)lParam ; map<HWND,string>::iterator it ;
+			if ((it = g_quick_login_bar_btns.find(btnHwnd)) != g_quick_login_bar_btns.end())
 			{
 				g_connect_host.Set((*it).second.c_str()) ;
 				WritePrivateProfileString(CONFSEC , "host" , (*it).second.c_str() , g_ini_file.Get()) ;
@@ -800,9 +816,9 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 				HWND favBtn1 = GetDlgItem(hwndDlg , IDC_FAVBTN1) ;
 				HWND favBtn2 = GetDlgItem(hwndDlg , IDC_FAVBTN2) ;
 				HWND favBtn3 = GetDlgItem(hwndDlg , IDC_FAVBTN3) ;
-				g_quick_login_connect_btns.insert(pair<HWND,string>(favBtn1 , "")) ;
-				g_quick_login_connect_btns.insert(pair<HWND,string>(favBtn2 , "")) ;
-				g_quick_login_connect_btns.insert(pair<HWND,string>(favBtn3 , "")) ;
+				g_quick_login_connect_btns.insert(pair<HWND,HWND>(favBtn1 , NULL)) ;
+				g_quick_login_connect_btns.insert(pair<HWND,HWND>(favBtn2 , NULL)) ;
+				g_quick_login_connect_btns.insert(pair<HWND,HWND>(favBtn3 , NULL)) ;
 				SetWindowText(favBtn1 , g_fav_host_1.c_str()) ;
 				SetWindowText(favBtn2 , g_fav_host_2.c_str()) ;
 				SetWindowText(favBtn3 , g_fav_host_3.c_str()) ;
@@ -1581,6 +1597,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
+/* TODO: tooltips
+HWND ToolTipWnd = CreateWindow(TOOLTIPS_CLASS , NULL , WS_POPUP , 0 , 0 , 0 , 0 , hwndDlg , NULL , g_hInst , 0) ;
+if (ToolTipWnd != NULL) SendMessage(ToolTipWnd , TTM_ACTIVATE , TRUE , 0) ;
+
+TOOLINFO toolinfo ; memset(&toolinfo , 0 , sizeof(TOOLINFO)) ;
+toolinfo.cbSize = sizeof(TOOLINFO) ; toolinfo.hwnd = hwndDlg ;
+toolinfo.uFlags = TTF_SUBCLASS | TTF_IDISHWND ;
+toolinfo.uId = IDC_COLORTOGGLE ; toolinfo.hinst = NULL ;
+toolinfo.lpszText = "TipText" ;
+SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
+*/
       }
     return 0;
     case WM_TIMER:
