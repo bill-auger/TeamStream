@@ -140,6 +140,8 @@ DWORD WINAPI TeamStreamNet::HttpPollThread(LPVOID p)
 
 string TeamStreamNet::GetLiveJams(bool isForce)
 {
+//return (m_live_jams = "localhost:2049,fred,barney\nlocalhost:2050,wilma,betty") ;
+
 	if (!m_live_jams_dirty && !isForce) return LIVE_JAMS_CLEAN_FLAG ;
 	else { m_live_jams_dirty = false ; return m_live_jams ; }	
 }
