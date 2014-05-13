@@ -1,6 +1,7 @@
 /*
-    Copyright (C) 2005 Cockos Incorporated
+    NINJAM Copyright (C) 2005 Cockos Incorporated
     Portions Copyright (C) 2005 Brennan Underwood
+    TeamStream Copyright (C) 2012-2014 bill-auger
 
     TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,10 +19,8 @@
 */
 
 /*
-
   Windows client code.
-  
-  */
+*/
 
 #include <windows.h>
 #include <windowsx.h>
@@ -127,8 +126,8 @@ void winInit()
 
 void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 {
-	char* fullUserName = g_client->GetUserName() ;
-	char* localUsername = TeamStream::TrimUsername(fullUserName) ;
+	char* fullName = g_client->GetUserName() ;
+	char* localUsername = TeamStream::TrimUsername(fullName) ;
 	SetDlgItemText(hwndDlg , IDC_STATUS , "Initializing TeamStream ....") ; Sleep(1000) ;
 	if (TeamStream::IsTeamStreamUsernameCollision(localUsername))
 	{
@@ -148,14 +147,39 @@ void initTeamStreamUser(HWND hwndDlg , bool isEnable)
 	}
 
   WDL_String statusText ; statusText.Set("Connected to ") ;
-  statusText.Append(g_client->GetHostName()) ;
+  char* host = g_client->GetHostName() ; statusText.Append(g_client->GetHostName()) ;
   SetDlgItemText(hwndDlg , IDC_STATUS , statusText.Get()) ;
 
-	int chatColorIdx = TeamStream::ReadTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , CHAT_COLOR_DEFAULT) ;
-	char* currHost = strtok(g_client->GetHostName() , ":") ;
-	TeamStream::BeginTeamStream(currHost , localUsername , chatColorIdx , isEnable , fullUserName) ;
-	if (!TeamStream::IsTeamStream()) chat_addline(USERNAME_TEAMSTREAM , NON_TEAMSTREAM_SERVER_MSG) ;
+	int chatColorIdx = ReadTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , CHAT_COLOR_DEFAULT) ;
+	TeamStream::BeginTeamStream(host , localUsername , chatColorIdx , isEnable , fullName) ;
+	if (!TeamStream::IsTeamStreamAvailable()) chat_addline(USERNAME_TEAMSTREAM , NON_TEAMSTREAM_SERVER_MSG) ;
+	setTeamStreamMenuState() ;
 }
+
+
+/* config helpers */
+
+bool ReadTeamStreamConfigBool(char* aKey , bool defVal)
+	{ return (bool)GetPrivateProfileInt(TEAMSTREAM_CONFSEC , aKey , (defVal)? 1 : 0 , g_ini_file.Get()) ; }
+void WriteTeamStreamConfigBool(char* aKey , bool aBool)
+	{ WritePrivateProfileString(TEAMSTREAM_CONFSEC , aKey , (aBool)? "1" : "0" , g_ini_file.Get()) ; }
+int ReadTeamStreamConfigInt(char* aKey , int defVal)
+	{ return GetPrivateProfileInt(TEAMSTREAM_CONFSEC , aKey , defVal , g_ini_file.Get()) ; }
+void WriteTeamStreamConfigInt(char* aKey , int anInt)
+{
+	if (anInt <= 9999999) { char theInt[8] ; sprintf(theInt , "%d" , anInt) ;
+		WritePrivateProfileString(TEAMSTREAM_CONFSEC , aKey , theInt , g_ini_file.Get()) ; }
+}
+string ReadTeamStreamConfigString(char* aKey , char* defVal)
+{
+	char buff[MAX_CONFIG_STRING_LEN] ;
+	GetPrivateProfileString(TEAMSTREAM_CONFSEC , aKey , defVal , buff , sizeof(buff) , g_ini_file.Get()) ;
+
+	return string(buff) ;
+}
+
+void WriteTeamStreamConfigString(char* aKey , const char* aString)
+	{ WritePrivateProfileString(TEAMSTREAM_CONFSEC , aKey , aString , g_ini_file.Get()) ; }
 
 
 /* web server requests */
@@ -230,9 +254,9 @@ void toggleFavoritesMenu()
 	EnableMenuItem(GetMenu(g_hwnd) , 2 , flags) ; DrawMenuBar(g_hwnd) ;
 }
 
-void setTeamStreamMenuItems()
+void setTeamStreamMenuState()
 {
-	bool isOn = TeamStream::ReadTeamStreamConfigBool(ENABLED_CFG_KEY , 1) ;
+	bool isOn = (ReadTeamStreamConfigBool(ENABLED_CFG_KEY , true) && TeamStream::IsTeamStreamAvailable()) ;
 	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_ON , (isOn)? MF_CHECKED : MF_UNCHECKED) ;
 	CheckMenuItem(GetMenu(g_hwnd) , ID_TEAMSTREAM_OFF , (!isOn)? MF_CHECKED : MF_UNCHECKED) ;
 }
@@ -244,7 +268,7 @@ void setTeamStreamModeGUI(int userId , bool isEnableTeamStream)
 	if (userId == USERID_LOCAL)
 	{
 		// teamstream items
-		setTeamStreamMenuItems() ;
+		setTeamStreamMenuState() ;
 		ShowWindow(g_linkup_btn ,				showHide) ;
 		ShowWindow(g_teamstream_lbl ,		showHide) ;
 		ShowWindow(g_linkdn_btn ,				showHide) ;
@@ -302,7 +326,7 @@ void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx)
 HWND CreateToolTip(HWND hwndTool , HWND hwndDlg , PTSTR pszText)
 {
 	if (!hwndTool || !hwndDlg || !pszText) (HWND)NULL ;
-    
+
 	HWND hwndTip = CreateWindow(TOOLTIPS_CLASS , NULL ,
 		TTS_BALLOON | TTS_NOPREFIX | TTS_ALWAYSTIP ,
 		0 , 0 , 0 , 0 , hwndDlg , NULL , g_hInst , NULL) ;
@@ -363,7 +387,7 @@ void getLinksListViewColumnText(int btnIdx , char* username , int buffSize)
 
 void setLinksListViewColumnText(int linkIdx , char* username)
 {
-	int btnIdxs[N_LINKS] ; 
+	int btnIdxs[N_LINKS] ;
 	SendMessage(g_links_listview , (UINT)LVM_GETCOLUMNORDERARRAY , (WPARAM)N_LINKS , (LPARAM)btnIdxs) ;
 	int btnIdx = btnIdxs[linkIdx] ;
 
@@ -393,7 +417,7 @@ void dbgListbox()
 		char* aFullName = (char*)SendMessage(g_users_listbox , (UINT)LB_GETITEMDATA , (WPARAM)i , 0) ;
 char name[256] ; sprintf(name , "\n%d %s %s" , i , aName , aFullName) ; strcat(names , name) ;
 	}
-TeamStream::DBG("names" , names) ;
+TRACE("dbgListbox() names" , names) ;
 }
 
 void resetUsersListbox() { SendMessage(g_users_listbox , (UINT)LB_RESETCONTENT , 0 , 0) ; }
@@ -456,7 +480,7 @@ BOOL WINAPI UsersListProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lPar
 					char username[MAX_USERNAME_LEN + 1] ; SendMessage(g_users_listbox , (UINT)LB_GETTEXT , (WPARAM)listIdx ,
 						reinterpret_cast<LPARAM>((LPCTSTR)username)) ;
 					TeamStream::SetLink(TeamStream::GetUserIdByName(username) , username , getLinkIdxByBtnIdx(g_curr_btn_idx) , true) ;
-					TeamStream::SendLinksChatMsg(false , NULL) ;
+					TeamStreamNet::PostLinksMsg() ;
 				}
         break ;
 		}
@@ -482,7 +506,7 @@ void updateQuickLoginButtons(bool isForce)
 	HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT) ;
 
 	// destroy any existing buttons on the quick login bar
-	for (map<HWND,string>::iterator it = g_quick_login_bar_btns.begin() ; it != g_quick_login_bar_btns.end() ;)
+	for (map<HWND,string>::iterator it = g_quick_login_bar_btns.begin() ; it != g_quick_login_bar_btns.end() ; )
 		{ DestroyWindow((*it).first) ; g_quick_login_bar_btns.erase(it++) ; }
 
 	HWND hwndConnectDlg = FindWindow(NULL , TEXT("TeamStream Connection Configuration")) ;
@@ -492,7 +516,7 @@ void updateQuickLoginButtons(bool isForce)
 		HWND favBtn1 = GetDlgItem(hwndConnectDlg , IDC_FAVBTN1) ;
 		HWND favBtn2 = GetDlgItem(hwndConnectDlg , IDC_FAVBTN2) ;
 		HWND favBtn3 = GetDlgItem(hwndConnectDlg , IDC_FAVBTN3) ;
-		for (map<HWND,HWND>::iterator it = g_quick_login_connect_btns.begin() ; it != g_quick_login_connect_btns.end() ;)
+		for (map<HWND,HWND>::iterator it = g_quick_login_connect_btns.begin() ; it != g_quick_login_connect_btns.end() ; )
 			if((*it).first == favBtn1 || (*it).first == favBtn2 || (*it).first == favBtn3) ++it ;
 			else
 			{
@@ -516,7 +540,7 @@ void updateQuickLoginButtons(bool isForce)
 	while (getline(ssCsv , line))
 	{
 		// parse server line
-		istringstream ssLine(line) ; string server ; getline(ssLine , server , ',') ; 
+		istringstream ssLine(line) ; string server ; getline(ssLine , server , ',') ;
 		string usersCsv ; getline(ssLine , usersCsv) ; istringstream ssUsers(usersCsv) ;
 		string user ; short nUsers = 0 ; WDL_String users(server.c_str()) ; users.Append("\n") ;
 		while (getline(ssUsers , user , ','))
@@ -629,7 +653,7 @@ void clearChat() { SetWindowText(GetDlgItem(g_hwnd , IDC_CHATDISP) , "") ; }
 
 void sendChatMessage(char* chatMsg) { g_client->ChatMessage_Send("MSG" , chatMsg) ; }
 
-void sendChatPvtMessage(char* destFullUserName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullUserName , chatMsg) ; }
+void sendChatPvtMessage(char* destFullName , char* chatMsg) { g_client->ChatMessage_Send("PRIVMSG" , destFullName , chatMsg) ; }
 
 COLORREF getChatColor(int idx) { return g_chat_colors[idx] ; }
 
@@ -651,8 +675,8 @@ BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lP
 			int btnIdx = 0 ; while (btnIdx < N_CHAT_COLORS && g_color_btn_ids[btnIdx] != btnId) ++btnIdx ;
 			ShowWindow(hwndDlg , SW_HIDE) ; if (btnIdx == N_CHAT_COLORS) return 0 ;
 
-			TeamStream::SetChatColorIdx(USERID_LOCAL , btnIdx) ;
-			TeamStream::WriteTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , btnIdx) ;
+			TeamStream::SetChatColorIdx(USERID_LOCAL , btnIdx) ; TeamStreamNet::PostChatColorMsg(btnIdx) ;
+			WriteTeamStreamConfigInt(CHAT_COLOR_CFG_KEY , btnIdx) ;
 		}
 		break ;
 
@@ -690,9 +714,9 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 }
 
 
-void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
-{ 
-  if (!g_audio_enable) 
+void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate)
+{
+  if (!g_audio_enable)
   {
     int x;
     // clear all output buffers
@@ -734,9 +758,9 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
         if (!str[0])
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,g_exepath);
-        else 
+        else
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
-        
+
         if (g_client->GetStatus() != NJClient::NJC_STATUS_OK)
           ShowWindow(GetDlgItem(hwndDlg,IDC_CHNOTE),SW_HIDE);
       }
@@ -756,9 +780,9 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 			      bi.lpszTitle = "Select a directory:";
 			      bi.ulFlags = BIF_RETURNONLYFSDIRS;
 			      idlist = SHBrowseForFolder( &bi );
-			      if (idlist) 
+			      if (idlist)
             {
-				      SHGetPathFromIDList( idlist, name );        
+				      SHGetPathFromIDList( idlist, name );
 	            IMalloc *m;
 	            SHGetMalloc(&m);
 	            m->Free(idlist);
@@ -829,7 +853,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
         {
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
-          ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
+          ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);
         }
         else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
 
@@ -887,13 +911,13 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_HIDE);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_HIDE);
-            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_HIDE);          
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_HIDE);
           }
           else
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
-            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);
           }
         break;
 
@@ -958,14 +982,14 @@ static void do_disconnect()
   g_client_mutex.Enter();
 
   WDL_String sessiondir(g_client->GetWorkDir()); // save a copy of the work dir before we blow it away
-  
+
   g_client->Disconnect();
   delete g_client->waveWrite;
   g_client->waveWrite=0;
   g_client->SetWorkDir(NULL);
   g_client->SetOggOutFile(NULL,0,0,0);
   g_client->SetLogFile(NULL);
-  
+
   g_client_mutex.Leave();
 
   if (sessiondir.Get()[0])
@@ -980,7 +1004,7 @@ static void do_disconnect()
         char buf[32];
         sprintf(buf,"%x",n);
         s.Append(buf);
-    
+
         {
           WDL_DirScan ds;
           if (!ds.First(s.Get()))
@@ -991,7 +1015,7 @@ static void do_disconnect()
               {
                 WDL_String t;
                 ds.GetCurrentFullFN(&t);
-                unlink(t.Get());          
+                unlink(t.Get());
               }
             }
             while (!ds.Next());
@@ -1045,7 +1069,7 @@ static void do_connect()
     time_t tv;
     time(&tv);
     struct tm *t=localtime(&tv);
-  
+
     buf[0]=0;
 
     strcpy(buf,sroot);
@@ -1060,7 +1084,7 @@ static void do_connect()
     cnt++;
   }
   if (cnt >= 16)
-  {      
+  {
     SetDlgItemText(g_hwnd,IDC_STATUS,"ERROR CREATING SESSION DIRECTORY");
     MessageBox(g_hwnd,"Error creating session directory!", "TeamStream error", MB_OK);
     return;
@@ -1100,7 +1124,7 @@ static void do_connect()
       }
     }
   }
-  
+
   SendMessage(m_locwnd,WM_LCUSER_REPOP_CH,0,0);
 
   g_client->SetWorkDir(buf);
@@ -1109,7 +1133,7 @@ static void do_connect()
   if (GetPrivateProfileInt(CONFSEC,"savelocal",0,g_ini_file.Get()))
   {
     g_client->config_savelocalaudio|=1;
-    if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get())) 
+    if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
       g_client->config_savelocalaudio|=2;
   }
   if (GetPrivateProfileInt(CONFSEC,"savewave",0,g_ini_file.Get()))
@@ -1119,7 +1143,7 @@ static void do_connect()
     wf.Append("output.wav");
     g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
   }
-  
+
   if (GetPrivateProfileInt(CONFSEC,"saveogg",0,g_ini_file.Get()))
   {
     WDL_String wf;
@@ -1128,7 +1152,7 @@ static void do_connect()
     int br=GetPrivateProfileInt(CONFSEC,"saveoggbr",128,g_ini_file.Get());
     g_client->SetOggOutFile(fopen(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,br);
   }
-  
+
   if (g_client->config_savelocalaudio)
   {
     WDL_String lf;
@@ -1186,7 +1210,7 @@ int g_last_resize_x_pos ;
 int g_last_resize_y_pos ;
 static void resizeBottomPanesHoriz(HWND hwndDlg , int x_pos , WDL_WndSizer &resize , int doresize)
 {
-  // move things, specifically 
+  // move things, specifically
 	// IDC_DIV4 : left and right
 	// IDC_CHATGRP, IDC_CHATDISP, IDC_CHATENT , IDC_COLORPICKERTOGGLE: left
   // IDC_DIV2 : top and bottom
@@ -1240,10 +1264,10 @@ int g_last_resize_pos;
 static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
 #endif HORIZ_RESIZE
 {
-  // move things, specifically 
+  // move things, specifically
   // IDC_DIV2 : top and bottom
   // IDC_LOCGRP, IDC_LOCRECT: bottom
-  // IDC_REMGRP, IDC_REMOTERECT: top        
+  // IDC_REMGRP, IDC_REMOTERECT: top
   RECT divr;
   GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
   ScreenToClient(hwndDlg,(LPPOINT)&divr);
@@ -1273,7 +1297,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
   }
 
   int tab[]={IDC_DIV2,IDC_LOCGRP,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
-  
+
   // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
   int x;
   for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
@@ -1285,7 +1309,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
     if (!x || x > 2) // do top
     {
-      // the output formula for top is: 
+      // the output formula for top is:
       // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
       // so we compute the inverse, to find rec->orig.top
 
@@ -1387,19 +1411,19 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         char tmp[512];
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,63);       
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,63);
         GetPrivateProfileString(CONFSEC,"mastervol","1.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_mastervolume=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
 
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,63);       
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,63);
         GetPrivateProfileString(CONFSEC,"metrovol","0.5",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_metronome=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
 
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETTIC,FALSE,50);       
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETTIC,FALSE,50);
         GetPrivateProfileString(CONFSEC,"masterpan","0.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_masterpan=(float)atof(tmp);
         int t=(int)(g_client->config_masterpan*50.0) + 50;
@@ -1407,7 +1431,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETPOS,TRUE,t);
 
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETTIC,FALSE,50);       
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETTIC,FALSE,50);
         GetPrivateProfileString(CONFSEC,"metropan","0.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_metronome_pan=(float)atof(tmp);
         t=(int)(g_client->config_metronome_pan*50.0) + 50;
@@ -1531,7 +1555,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               {
                 switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0fx\0name\0"))
                 {
-                  case 0: // source 
+                  case 0: // source
                     {
                       if (!strncmp(lp.gettoken_str(n+1),"mix",3))
                       {
@@ -1597,7 +1621,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         g_last_wndpos.top = GetPrivateProfileInt(CONFSEC,"wnd_y",0,g_ini_file.Get());
         g_last_wndpos.right = g_last_wndpos.left+GetPrivateProfileInt(CONFSEC,"wnd_w",640,g_ini_file.Get());
         g_last_wndpos.bottom = g_last_wndpos.top+GetPrivateProfileInt(CONFSEC,"wnd_h",480,g_ini_file.Get());
-        
+
         if (g_last_wndpos.top || g_last_wndpos.left || g_last_wndpos.right || g_last_wndpos.bottom)
         {
           SetWindowPos(hwndDlg,NULL,g_last_wndpos.left,g_last_wndpos.top,g_last_wndpos.right-g_last_wndpos.left,g_last_wndpos.bottom-g_last_wndpos.top,SWP_NOZORDER);
@@ -1607,7 +1631,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         if (ws > 0) ShowWindow(hwndDlg,SW_SHOWMAXIMIZED);
         else if (ws < 0) ShowWindow(hwndDlg,SW_SHOWMINIMIZED);
         else ShowWindow(hwndDlg,SW_SHOW);
-     
+
         SetTimer(hwndDlg,1,50,NULL);
 
         int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get()); // TODO: it is DIV2 that is referenced here
@@ -1724,7 +1748,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
             if (intl != last_interval_len)
             {
               last_interval_len=intl;
-              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));             
+              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));
             }
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
@@ -1795,13 +1819,10 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 			else if (wParam == IDT_LOCAL_USER_INIT_TIMER)
 			{
 				KillTimer(hwndDlg , IDT_LOCAL_USER_INIT_TIMER) ;
-				bool isEnable = TeamStream::ReadTeamStreamConfigBool(ENABLED_CFG_KEY , true) ;
+				bool isEnable = ReadTeamStreamConfigBool(ENABLED_CFG_KEY , true) ;
 				initTeamStreamUser(hwndDlg , isEnable) ;
 			}
 #endif TEAMSTREAM_INIT
-			// delay sending in case we click too fast
-			else if (wParam == IDT_LINKS_CHAT_TIMER)
-				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
     break;
     case WM_GETMINMAXINFO:
       {
@@ -1840,13 +1861,13 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 #if HORIZ_RESIZE
 				RECT horizSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV2) , &horizSplitRect) ;
 				RECT vertSplitRect ; GetWindowRect(GetDlgItem(hwndDlg , IDC_DIV4) , &vertSplitRect) ;
-        if (p.x >= horizSplitRect.left && p.x <= horizSplitRect.right && 
+        if (p.x >= horizSplitRect.left && p.x <= horizSplitRect.right &&
             p.y >= horizSplitRect.top - 4 && p.y <= horizSplitRect.bottom + 4)
 				{
 					SetCursor(LoadCursor(NULL,IDC_SIZENS)) ;
 					SetCapture(hwndDlg) ; cap_mode = 1 ; cap_spos = p.y - horizSplitRect.top ;
 				}
-				else if (p.x >= vertSplitRect.left && p.x <= vertSplitRect.right && 
+				else if (p.x >= vertSplitRect.left && p.x <= vertSplitRect.right &&
             p.y >= vertSplitRect.top - 4 && p.y <= vertSplitRect.bottom + 4)
 				{
 					SetCursor(LoadCursor(NULL,IDC_SIZEWE)) ;
@@ -1855,7 +1876,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 #else HORIZ_RESIZE
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
-        if (p.x >= r.left && p.x <= r.right && 
+        if (p.x >= r.left && p.x <= r.right &&
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
           SetCursor(LoadCursor(NULL,IDC_SIZENS));
@@ -1868,7 +1889,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
     return 0;
 
     case WM_SIZE:
-      if (wParam != SIZE_MINIMIZED) 
+      if (wParam != SIZE_MINIMIZED)
       {
         resize.onResize(NULL,1); // don't actually resize, just compute the rects
 				RECT new_rect ; GetClientRect(hwndDlg , &new_rect) ;
@@ -1918,7 +1939,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 				RECT offsetR ; offsetR.left = 130 ; offsetR.right = 203 ; offsetR.top = 14 ; offsetR.bottom = 12 ;
 				MapDialogRect(hwndDlg , &offsetR) ;
 				int newX = offsetR.left ; int newY = new_rect.bottom - offsetR.top ;
-				int newW = new_rect.right - offsetR.right ; int newH = offsetR.bottom ;				
+				int newW = new_rect.right - offsetR.right ; int newH = offsetR.bottom ;
 				SetWindowPos(g_quick_login_bar , NULL , newX , newY , newW , newH , NULL) ;
 
 				if (g_color_picker)
@@ -1929,7 +1950,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 					SetWindowPos(g_color_picker , NULL , x , y , 0 , 0 , SWP_NOSIZE) ;
 				}
       }
-      if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) 
+      if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED)
       {
         if (wParam == SIZE_MINIMIZED) g_last_wndpos_state=-1;
         else if (wParam == SIZE_MAXIMIZED) g_last_wndpos_state=1;
@@ -2064,7 +2085,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
                 {
                   if (!strncasecmp(str,"/me ",4)) g_client->ChatMessage_Send("MSG" , str) ;
                   else if (!strncasecmp(str,"/topic ",7)||
-                           !strncasecmp(str,"/kick ",6) ||                        
+                           !strncasecmp(str,"/kick ",6) ||
                            !strncasecmp(str,"/bpm ",5) ||
                            !strncasecmp(str,"/bpi ",5)) // alias to /admin *
 										g_client->ChatMessage_Send("ADMIN",str+1);
@@ -2114,7 +2135,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
                     g_client_mutex.Leave();
                   }
                   else if (!strncasecmp(str,"/topic ",7)||
-                           !strncasecmp(str,"/kick ",6) ||                        
+                           !strncasecmp(str,"/kick ",6) ||
                            !strncasecmp(str,"/bpm ",5) ||
                            !strncasecmp(str,"/bpi ",5)
                     ) // alias to /admin *
@@ -2181,13 +2202,13 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 
 #if TEAMSTREAM
 				case ID_TEAMSTREAM_ON:
-					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
+					if (TeamStream::IsTeamStreamAvailable()) TeamStream::SetTeamStreamMode(USERID_LOCAL , true) ;
 					else if (g_is_logged_in) initTeamStreamUser(hwndDlg , true) ;
-					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , true) ; setTeamStreamMenuItems() ;
+					WriteTeamStreamConfigBool(ENABLED_CFG_KEY , true) ; setTeamStreamMenuState() ;
 				break ;
 				case ID_TEAMSTREAM_OFF:
-					if (TeamStream::IsTeamStream()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ;
-					TeamStream::WriteTeamStreamConfigBool(ENABLED_CFG_KEY , false) ; setTeamStreamMenuItems() ;
+					if (TeamStream::IsTeamStreamAvailable()) TeamStream::SetTeamStreamMode(USERID_LOCAL , false) ;
+					WriteTeamStreamConfigBool(ENABLED_CFG_KEY , false) ; setTeamStreamMenuState() ;
 				break ;
 				case ID_TEAMSTREAM_LOAD: // TODO:
 				break ;
@@ -2213,36 +2234,17 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 					char* host ; string hostString(host = g_connect_host.Get()) ;
 					if (strlen(host) >= MAX_HOST_LEN) break ;
 
-					if (!g_fav_host_1.compare(hostString))
-					{
-						g_fav_host_1 = "Favorite 1" ;
-						TeamStream::WriteTeamStreamConfigString("fav_host_1" , "Favorite 1") ;
-					}
-					if (!g_fav_host_2.compare(hostString))
-					{
-						g_fav_host_2 = "Favorite 2" ;
-						TeamStream::WriteTeamStreamConfigString("fav_host_2" , "Favorite 2") ;
-					}
-					if (!g_fav_host_3.compare(hostString))
-					{
-						g_fav_host_3 = "Favorite 3" ;
-						TeamStream::WriteTeamStreamConfigString("fav_host_3" , "Favorite 3") ;
-					}
+					if (!g_fav_host_1.compare(hostString)) g_fav_host_1 = "Favorite 1" ;
+					if (!g_fav_host_2.compare(hostString)) g_fav_host_2 = "Favorite 2" ;
+					if (!g_fav_host_3.compare(hostString)) g_fav_host_3 = "Favorite 3" ;
 					switch (LOWORD(wParam))
 					{
-						case ID_FAVORITES_SAVE1:
-							g_fav_host_1 = hostString ;
-							TeamStream::WriteTeamStreamConfigString("fav_host_1" , host) ;
-						break ;
-						case ID_FAVORITES_SAVE2:
-							g_fav_host_2 = hostString ;
-							TeamStream::WriteTeamStreamConfigString("fav_host_2" , host) ;
-						break ;
-						case ID_FAVORITES_SAVE3:
-							g_fav_host_3 = hostString ;
-							TeamStream::WriteTeamStreamConfigString("fav_host_3" , host) ;
-						break ;
+						case ID_FAVORITES_SAVE1: g_fav_host_1 = hostString ; break ;
+						case ID_FAVORITES_SAVE2: g_fav_host_2 = hostString ; break ;
+						case ID_FAVORITES_SAVE3: g_fav_host_3 = hostString ; break ;
 					}
+					string favs = g_fav_host_1 + "," + g_fav_host_2 + "," + g_fav_host_3 ;
+					WriteTeamStreamConfigString(FAVS_CFG_KEY , favs.c_str()) ;
 					populateFavoritesMenu() ;
 				}
 				break ;
@@ -2253,10 +2255,10 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 					int maxc=g_client->GetMaxLocalChannels();
 					for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
 
-					if (idx < maxc) 
+					if (idx < maxc)
 					{
 						g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
-						g_client->NotifyServerOfChannelChange();  
+						g_client->NotifyServerOfChannelChange();
 					}
 					g_client_mutex.Leave();
 
@@ -2268,10 +2270,9 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 
 				case IDC_COLORTOGGLE:
 				{
-// see issue #1
-// TODO: i think the solution to issue #1 maybe to create and destroy the color picker rather than show/hide
+// TODO: issue #1
+//   the solution maybe to create and destroy the color picker rather than show/hide
 //					setFocusChat() ;
-					if (!TeamStream::IsTeamStream()) break ;
 
 //					if (ShowWindow(m_color_picker , SW_SHOWNOACTIVATE))
 					if (ShowWindow(g_color_picker , SW_SHOW))
@@ -2287,7 +2288,7 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 				// link assignment and ordering (see also remchn.cpp RemoteUserItemProc())
         case IDC_LINKUP: case IDC_LINKDN:
 					if (TeamStream::ShiftRemoteLinkIdx(USERID_LOCAL , (LOWORD(wParam) == IDC_LINKUP)))
-						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
+						TeamStreamNet::PostLinksMsg() ;
         break ;
 
 				case IDC_VOTEBPIEDIT:
@@ -2305,8 +2306,8 @@ SendMessage(ToolTipWnd , TTM_ADDTOOL , 0 , (LPARAM)&toolinfo) ;
 						HWND editBox = (isBpiOrBpmBtn)? g_bpi_edit : g_bpm_edit ;
 						char* voteType = (isBpiOrBpmBtn)? "bpi" : "bpm" ;
 						char editText[4] ; Edit_GetText(editBox , (LPTSTR)editText , 4) ;
-						const int voteMsgLen = VOTE_CHAT_TRIGGER_LEN + 8 ;
-						char voteMsg[voteMsgLen] ; sprintf(voteMsg , "%s%s %s" , VOTE_CHAT_TRIGGER , voteType , editText) ;
+						const int voteMsgLen = VOTE_CHAT_MESSAGE_LEN + 8 ;
+						char voteMsg[voteMsgLen] ; sprintf(voteMsg , "%s%s %s" , VOTE_CHAT_MESSAGE , voteType , editText) ;
 						sendChatMessage(voteMsg) ; Edit_SetText(editBox , (LPTSTR)"") ;
 					}
 				break ;
@@ -2384,7 +2385,7 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
 
     case WM_CLOSE:
       if (1) DestroyWindow(hwndDlg);
-    break;  
+    break;
     case WM_ENDSESSION:
     case WM_DESTROY:
 
@@ -2417,7 +2418,7 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
           char *lcn;
           float v=0.0f,p=0.0f;
           bool m=0,s=0;
-      
+
           lcn=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
           g_client->GetLocalChannelMonitoring(a,&v,&p,&m,&s);
 
@@ -2439,9 +2440,9 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
           else
           {
             sprintf(buf,"%d",sch);
-            sstr.Set(buf);           
+            sstr.Set(buf);
           }
-          
+
 // NOTE: fx is not implemented
           sprintf(buf,"%d source '%s' bc %d mute %d solo %d volume %f pan %f fx 0 name `%s`",a,sstr.Get(),bc,m,s,v,p,lcn);
           char specbuf[64];
@@ -2455,7 +2456,7 @@ InvalidateRect(hwndDlg , &listboxRect , TRUE) ; ShowWindow(m_link_listbox , SW_S
 
       {
         char buf[256];
-        
+
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
 
@@ -2545,9 +2546,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_passremember = GetPrivateProfileInt(CONFSEC , "passrem" , 0 , g_ini_file.Get()) ;
     g_connect_anon = GetPrivateProfileInt(CONFSEC , "anon" , 1 , g_ini_file.Get()) ;
 
-		g_fav_host_1 = TeamStream::ReadTeamStreamConfigString("fav_host_1" , "Favorite 1") ;
-		g_fav_host_2 = TeamStream::ReadTeamStreamConfigString("fav_host_2" , "Favorite 2") ;
-		g_fav_host_3 = TeamStream::ReadTeamStreamConfigString("fav_host_3" , "Favorite 3") ;
+		istringstream ssCsv(ReadTeamStreamConfigString(FAVS_CFG_KEY , "Favorite 1,Favorite 2,Favorite 3")) ;
+		getline(ssCsv , g_fav_host_1 , ',') ; getline(ssCsv , g_fav_host_2 , ',') ; getline(ssCsv , g_fav_host_3 , ',') ;
+		TeamStream::SetAlowedHosts(ReadTeamStreamConfigString(HOSTS_CFG_KEY , "")) ;
   }
 
   { // load richedit DLL
@@ -2586,6 +2587,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	TeamStreamNet::Do_Connect = do_connect ;
 	TeamStreamNet::Do_Disconnect = do_disconnect ;
 #endif GET_LIVE_JAMS
+	TeamStreamNet::Chat_Addline = chat_addline ;
+	TeamStreamNet::Send_Chat_Msg = sendChatMessage ;
+	TeamStreamNet::Send_Chat_Pvt_Msg = sendChatPvtMessage ;
+
 	TeamStream::Set_Bpi_Bpm_Labels = setBpiBpmLabels ;
 	TeamStream::Set_TeamStream_Mode_GUI = setTeamStreamModeGUI ;
 	TeamStream::Set_Link_GUI = setLinkGUI ;
@@ -2594,10 +2599,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	TeamStream::Remove_From_Users_Listbox = removeFromUsersListbox ;
 	TeamStream::Reset_Users_Listbox = resetUsersListbox ;
 #endif TEAMSTREAM_W32_LISTVIEW
-	TeamStream::Clear_Chat = clearChat ;
 	TeamStream::Get_Chat_Color = getChatColor ;
-	TeamStream::Send_Chat_Msg = sendChatMessage ;
-	TeamStream::Send_Chat_Pvt_Msg = sendChatPvtMessage ;
+	TeamStream::Clear_Chat = clearChat ;
 #endif TEAMSTREAM
 
   HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));
@@ -2624,7 +2627,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))
   {
-    if (!IsChild(g_hwnd,msg.hwnd) || 
+    if (!IsChild(g_hwnd,msg.hwnd) ||
         (!TranslateAccelerator(g_hwnd,hAccel,&msg) && !IsDialogMessage(g_hwnd,&msg)))
     {
       TranslateMessage(&msg);

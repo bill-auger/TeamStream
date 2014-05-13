@@ -1,5 +1,6 @@
 /*
-    Copyright (C) 2005 Cockos Incorporated
+    NINJAM Copyright (C) 2005 Cockos Incorporated
+    TeamStream Copyright (C) 2012-2014 bill-auger
 
     TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,18 +71,11 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 				// link assignment and ordering (see also winclient.cpp MainProc())
         case IDC_LINKUP: case IDC_LINKDN:
 					if (TeamStream::ShiftRemoteLinkIdx(g_client->GetUserId(m_user) , (LOWORD(wParam) == IDC_LINKUP)))
-						SetTimer(hwndDlg , IDT_LINKS_CHAT_TIMER , LINKS_CHAT_DELAY , NULL) ;
+						TeamStreamNet::PostLinksMsg() ;
         break ;
 #endif TEAMSTREAM
 			}
     break;
-
-#if TEAMSTREAM
-		case WM_TIMER:
-			if (wParam == IDT_LINKS_CHAT_TIMER)
-				{ KillTimer(hwndDlg , IDT_LINKS_CHAT_TIMER) ; TeamStream::SendLinksChatMsg(false , NULL) ; }
-		break ;
-#endif TEAMSTREAM
   }
   return 0;
 }

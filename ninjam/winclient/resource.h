@@ -1,3 +1,22 @@
+/*
+    Copyright (C) 2005 Cockos Incorporated
+    TeamStream Copyright (C) 2012-2014 bill-auger
+
+    TeamStream is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    TeamStream is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with TeamStream; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
 
 // TODO: this file needs some tlc
 
@@ -180,7 +199,6 @@
 #define IDT_AUTO_JOIN_TIMER											10001
 #define IDT_GET_LIVE_JAMS_TIMER									10002
 #define IDT_LOCAL_USER_INIT_TIMER								10003
-#define IDT_LINKS_CHAT_TIMER										10004
 
 // menu items
 #define ID_FILE_CONNECT                         40000

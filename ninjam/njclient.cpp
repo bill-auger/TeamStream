@@ -1,5 +1,6 @@
 /*
     Copyright (C) 2005 Cockos Incorporated
+    TeamStream Copyright (C) 2012-2014 bill-auger
 
     TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -915,7 +916,9 @@ delete theuser->channels[cid].next_ds[9] ; theuser->channels[cid].next_ds[9] = 0
                         chksolo=1;
                         delete theuser;
                         m_remoteusers.Delete(x);
+#if TEAMSTREAM
 												TeamStream::RemoveUser(un) ;
+#endif // TEAMSTREAM
                       }
 
                       if (chksolo)

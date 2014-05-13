@@ -1,5 +1,6 @@
 /*
-    Copyright (C) 2005 Cockos Incorporated
+    NINJAM Copyright (C) 2005 Cockos Incorporated
+    TeamStream Copyright (C) 2012-2014 bill-auger
 
     TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +16,6 @@
     along with TeamStream; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-
 
 
 #ifndef _WINCLIENT_H_
@@ -73,6 +73,13 @@ void licenseRun(HWND hwndDlg);
 // init
 void winInit() ;
 void initTeamStreamUser(HWND hwndDlg , bool isEnable) ;
+// config helpers
+bool ReadTeamStreamConfigBool(char* aKey , bool defVal) ;
+void WriteTeamStreamConfigBool(char* aKey , bool aBool) ;
+int ReadTeamStreamConfigInt(char* aKey , int defVal) ;
+void WriteTeamStreamConfigInt(char* aKey , int anInt) ;
+std::string ReadTeamStreamConfigString(char* aKey , char* defVal) ;
+void WriteTeamStreamConfigString(char* aKey , const char* aString) ;
 // web server requests
 void checkServerForUpdate() ;
 void processAppUpdate(char* updateUrl) ;
@@ -81,7 +88,7 @@ void setFocusChat() ;
 void setBpiBpmLabels(char* bpiString , char* bpmString) ;
 void populateFavoritesMenu() ;
 void toggleFavoritesMenu() ;
-void setTeamStreamMenuItems() ;
+void setTeamStreamMenuState() ;
 void setTeamStreamModeGUI(int userId , bool isEnableTeamStream) ;
 void setLinkGUI(int userId , char* username , int linkIdx , int prevLinkIdx) ;
 // GUI listView functions
@@ -102,7 +109,7 @@ static BOOL WINAPI QuickLoginBarProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , 
 // chat functions
 void clearChat() ;
 void sendChatMessage(char* chatMsg) ;
-void sendChatPvtMessage(char* destFullUserName , char* chatMsg) ;
+void sendChatPvtMessage(char* destFullName , char* chatMsg) ;
 COLORREF getChatColor(int idx) ;
 BOOL WINAPI ColorPickerProc(HWND hwndDlg , UINT uMsg , WPARAM wParam , LPARAM lParam) ;
 

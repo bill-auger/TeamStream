@@ -1,5 +1,6 @@
 /*
-    Copyright (C) 2005 Cockos Incorporated
+    NINJAM Copyright (C) 2005 Cockos Incorporated
+    TeamStream Copyright (C) 2012-2014 bill-auger
 
     TeamStream is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +35,8 @@ HWND g_hwnd ; HWND g_chat_hwnd ;
 bool cfg_color_names_only = false ;
 
 
-bool isFullUserNameLocal(char* fullUserName) { return (!strcmp(fullUserName , g_client->GetUserName())) ; }
+#if TEAMSTREAM_CHAT_TRIGGERS
+bool isFullNameLocal(char* fullName) { return (!strcmp(fullName , g_client->GetUserName())) ; }
 
 bool isUsernameLocal(char* username) { return (!strcmp(username , TeamStream::GetUsername(USERID_LOCAL))) ; }
 
@@ -44,20 +46,20 @@ void handleChatColorMsg(char* username , char* msgIn)
 	if (userId > USERID_LOCAL) TeamStream::SetChatColorIdx(userId , idx) ;
 }
 
-void handleTeamStreamMsg(char* fullUserName , char* username , char* msgIn , bool isPrivate)
+void handleTeamStreamMsg(char* fullName , char* username , char* msgIn , bool isPrivate)
 {
 	bool isEnableTeamStream = !strcmp(msgIn + TEAMSTREAM_CHAT_TRIGGER_LEN , "enabled") ;
 	WDL_String msgOut ; msgOut.Set(username) ;
 	msgOut.Append((isEnableTeamStream)? " is in TeamStream mode" : " is in NinJam mode") ;
 	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ;
 
-	int userId = TeamStream::AddUser(username , fullUserName) ; if (userId <= USERID_LOCAL) return ;
+	int userId = TeamStream::AddUser(username , fullName) ; if (userId <= USERID_LOCAL) return ;
 
 	if (!isEnableTeamStream || !TeamStream::IsTeamStreamUsernameCollision(username))
 		TeamStream::SetTeamStreamMode(userId , isEnableTeamStream) ;
 	bool isFirstReply = (!TeamStream::GetNRemoteUsers()) ;
-	if (isPrivate) { if (isFirstReply) TeamStream::SendLinksReqChatMsg(fullUserName) ; }
-	else { TeamStream::SendTeamStreamChatMsg(true , fullUserName) ; TeamStream::SendChatColorChatMsg(true , fullUserName) ; }
+	if (isPrivate) { if (isFirstReply) TeamStream::SendLinksReqChatMsg(fullName) ; }
+	else { TeamStream::SendTeamStreamChatMsg(true , fullName) ; TeamStream::SendChatColorChatMsg(true , fullName) ; }
 
 // TODO: we could combine SendTeamStreamChatMsg() with SendChatColorChatMsg()
 // TODO: in order for ID_TEAMSTREAM_LOAD/SAVE to work we need to check the current link order now
@@ -65,8 +67,8 @@ void handleTeamStreamMsg(char* fullUserName , char* username , char* msgIn , boo
 // and to be sure to remove exitting users only from the listview but keep them in the array?
 }
 
-void handleLinksReqMsg(char* fullUserName)
-	{ if (TeamStream::GetNUsers()) TeamStream::SendLinksChatMsg(true , fullUserName) ; }
+void handleLinksReqMsg(char* fullName)
+	{ if (TeamStream::GetNUsers()) TeamStream::SendLinksChatMsg(true , fullName) ; }
 
 void handleLinksMsg(char* senderUsername , char* msgIn)
 {
@@ -99,28 +101,20 @@ void handleLinksMsg(char* senderUsername , char* msgIn)
 	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ;
 #endif IS_CHAT_LINKS
 }
+#endif TEAMSTREAM_CHAT_TRIGGERS
 
 void handleVoteMsg(char* username , char* msgIn)
 {
-	WDL_String msgOut ; msgOut.Set("<") ; msgOut.Append(username) ;
-	msgOut.Append("> votes to set") ; msgOut.Append(msgIn + VOTE_CHAT_TRIGGER_LEN) ;
-	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ; //TODO: make this prettier
+	WDL_String msgOut(username) ; msgOut.Append(" votes to set ") ; char bpibpm[4] = "\0" ;
+	strncpy(bpibpm , msgIn += VOTE_CHAT_MESSAGE_LEN , 3) ; msgOut.Append(bpibpm) ;
+	msgOut.Append(" to ") ; strncpy(bpibpm , msgIn += 4 , 3) ; msgOut.Append(bpibpm) ;
+	chat_addline(USERNAME_TEAMSTREAM , msgOut.Get()) ;
 }
 
-bool parseChatTriggers(char* fullUserName , char* username , char* msgIn , bool isPrivate)
+bool parseChatTriggers(char* fullName , char* username , char* msgIn , bool isPrivate)
 {
 #if TEAMSTREAM_CHAT
-	bool isHandleTriggers = (TeamStream::IsTeamStream()) ;
-
-	if (!strncmp(msgIn , COLOR_CHAT_TRIGGER , COLOR_CHAT_TRIGGER_LEN))
-		{ if (isHandleTriggers) handleChatColorMsg(username , msgIn) ; }
-	else if (!strncmp(msgIn , TEAMSTREAM_CHAT_TRIGGER , TEAMSTREAM_CHAT_TRIGGER_LEN))
-		{ if (isHandleTriggers) handleTeamStreamMsg(fullUserName , username , msgIn , isPrivate) ; }
-	else if (!strncmp(msgIn , LINKS_REQ_CHAT_TRIGGER , LINKS_REQ_CHAT_TRIGGER_LEN))
-		{ if (isHandleTriggers) handleLinksReqMsg(fullUserName) ; }
-	else if (!strncmp(msgIn , LINKS_CHAT_TRIGGER , LINKS_CHAT_TRIGGER_LEN))
-		{ if (isHandleTriggers) handleLinksMsg(username , msgIn) ; }
-	else if (!strncmp(msgIn , VOTE_CHAT_TRIGGER , VOTE_CHAT_TRIGGER_LEN))
+	if (!strncmp(msgIn , VOTE_CHAT_MESSAGE , VOTE_CHAT_MESSAGE_LEN))
 		handleVoteMsg(username , msgIn) ;
 	else return false ; // default chat processing
 	return true ; // suppress default chat processing
@@ -291,7 +285,6 @@ void chatRun(HWND hwndDlg)
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
   GetScrollInfo(g_chat_hwnd , SB_VERT , &si) ;
 
-#if COLOR_CHAT
   {
     int oldsels,oldsele;
     SendMessage(g_chat_hwnd , EM_GETSEL , (WPARAM)&oldsels , (LPARAM)&oldsele) ;
@@ -327,7 +320,8 @@ void chatRun(HWND hwndDlg)
     GetWindowText(g_chat_hwnd , txt , sizeof(txt)-1) ;
     txt[sizeof(txt)-1]=0;
 
-		char *t = txt ; int sub=0 ; 	char lt = '\n' ;		
+#if COLOR_CHAT
+		char *t = txt ; int sub=0 ; char lt = '\n' ;		
     while (*t)
     {
       if (lt == '\n' || lt == '\r')
@@ -391,8 +385,8 @@ void chatRun(HWND hwndDlg)
 		SendMessage(m_hwnd , EM_SETSEL , oldsels , oldsele) ; t = txt ; lt = ' ' ; sub = 0 ;
 		// original link parser code was here ------->
 */
-	}
 #endif COLOR_CHAT
+	}
 
   if (GetFocus() == g_chat_hwnd)      
   {
