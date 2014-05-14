@@ -1,100 +1,89 @@
 #!/bin/bash
 
 
-echo ; echo "wix .wxs preperation helper"
+echo ; echo "wix .wxs preperation and build script"
 
-# NOTE: $versionmajor will be interprted as a 2-digit int
-#				$versionminor will be interprted as a 2-digit int
-#				$versionrev will be interprted as a 3-digit int
+# NOTE: versionrev will be auto-incremented - set $VERSION_FILE manually to jump
 
-BUILDDIR="./build" # the remaining dirs are relative to $BUILDDIR
-WIXDIR="./wix"
-WIXFILESDIR="./wixfiles"
-VERSIONTEXTFILE="../version.txt"
-VERSIONHFILE="version.h"
-BUILDBATFILE="build.bat"
-WIXTEXTFILEPREFIX="wix.wxs"
-NWIXTEXTFILES=6
-WIXSOUTPUTFILE="TeamStream.wxs"
-WIXSOBJECTFILE="TeamStream.wixobj"
-WIXMSIFILE="TeamStream.msi"
-EXEOUTPUTFILE="TeamStream.exe"
-SRCDIR="../ninjam"
-EXERELEASEDIR="$SRCDIR/winclient/Release"
-EXEINPUTFILE="$EXERELEASEDIR/TeamStream.exe"
-WIXSDKDIR="C:/Program Files/Windows Installer XML v3.5/bin"
-CANDLEEXEFILE="$WIXSDKDIR/candle.exe"
-LIGHTEXEFILE="$WIXSDKDIR/light.exe"
+BUILD_DIR="./build"
+INPUT_FILES_DIR="./files"
+WIX_FILE_PREFIX="wix.wxs"
+N_WIX_FILES=6
+WIX_OUTPUT_FILE="TeamStream.wxs"
+WIX_OBJECT_FILE="TeamStream.wixobj"
+EXE_OUTPUT_FILE="TeamStream.exe"
+SRC_DIR="../ninjam"
+VERSION_FILE="next_version.txt"
+VERSION_INPUT_FILE="$SRC_DIR/version.h"
+EXE_DIR="$SRC_DIR/winclient/Release"
+EXE_INPUT_FILE="$EXE_DIR/TeamStream.exe"
+WIX_SDK_DIR="C:/Program Files/Windows Installer XML v3.5/bin"
+CANDLE_EXE_FILE="$WIX_SDK_DIR/candle.exe"
+LIGHT_EXE_FILE="$WIX_SDK_DIR/light.exe"
+
+LAUNCH_DIR_MSG="this script must be run from its containig directory - aborting"
+DIR_MISSING_MSG="dir does not exist - aborting"
+FILE_MISSING_MSG="file does not exist - aborting"
+WIX_MISSING_MSG="cannot locate $N_WIX_FILES files in $INPUT_FILES_DIR"
+PARSE_ERROR_MSG="parsing error - aborting"
 
 
 # sanity checks
 echo ; echo "running sanity checks"
-if [ `dirname $0` != "." ] ; then
-	if [ -d $BUILDDIR ] ; then cd $BUILDDIR
-	else echo ; echo "$BUILDDIR dir does not exist - aborting" ; exit ; fi
-fi
-if [ ! -d $WIXDIR ] ; then echo ; echo "$WIXDIR dir does not exist - aborting" ; exit ; fi
-if [ ! -d $WIXFILESDIR ] ; then echo ; echo "$WIXFILESDIR dir does not exist - aborting" ; exit ; fi
-if [ `ls $WIXFILESDIR | grep -c ""` -ne $NWIXTEXTFILES ] ; then echo ; echo "cannot locate $NWIXTEXTFILES files in $WIXFILESDIR" ; exit ; fi
-if [ ! -f $VERSIONTEXTFILE ] ; then echo ; echo "$VERSIONTEXTFILE file does not exist - aborting" ; exit ; fi
-if [ ! -d $EXERELEASEDIR ] ; then echo ; echo "$EXERELEASEDIR dir does not exist - aborting" ; exit ; fi
-if [ ! -f $EXEINPUTFILE ] ; then echo ; echo "$EXEINPUTFILE file does not exist - aborting" ; exit ; fi
-if [ ! -f $BUILDBATFILE ] ; then echo ; echo "$BUILDBATFILE file does not exist - aborting" ; exit ; fi
-if [ ! -f "$CANDLEEXEFILE" ] ; then echo ; echo "$CANDLEEXEFILE file does not exist - aborting" ; exit ; fi
-if [ ! -f "$LIGHTEXEFILE" ] ; then echo ; echo "$LIGHTEXEFILE file does not exist - aborting" ; exit ; fi
+nWixFiles=`ls $INPUT_FILES_DIR | grep -c ""`
+if [ `dirname $0` != "."         ] ; then echo ; echo "$LAUNCH_DIR_MSG" ;                        exit ; fi ;
+if [ ! -d "$INPUT_FILES_DIR"     ] ; then echo ; echo "$INPUT_FILES_DIR $DIR_MISSING_MSG" ;              exit ; fi ;
+if [ $nWixFiles -ne $N_WIX_FILES ] ; then echo ; echo "$WIX_MISSING_MSG" ;                       exit ; fi ;
+if [ ! -d "$BUILD_DIR"           ] ; then echo ; echo "$BUILD_DIR $DIR_MISSING_MSG" ;            exit ; fi ;
+if [ ! -f "$VERSION_FILE"        ] ; then echo ; echo "$VERSION_FILE $FILE_MISSING_MSG" ;        exit ; fi ;
+if [ ! -d "$EXE_DIR"             ] ; then echo ; echo "$EXE_DIR $DIR_MISSING_MSG" ;              exit ; fi ;
+if [ ! -f "$EXE_INPUT_FILE"      ] ; then echo ; echo "$EXE_INPUT_FILE $FILE_MISSING_MSG" ;      exit ; fi ;
+if [ ! -f "$CANDLE_EXE_FILE"     ] ; then echo ; echo "$CANDLE_EXE_FILE $FILE_MISSING_MSG" ;     exit ; fi ;
+if [ ! -f "$LIGHT_EXE_FILE"      ] ; then echo ; echo "$LIGHT_EXE_FILE $FILE_MISSING_MSG" ;      exit ; fi ;
 
 
 # parse version file
 echo ; echo "parsing version file"
-tokens=`cat $VERSIONTEXTFILE | tr "." "\n" | tr " " "\n"` #; echo tokens=$tokens
+tokens=`cat $VERSION_FILE | tr "." "\n" | tr " " "\n"`
 arr=(`echo $tokens | grep ""`)
-versionmajor=${arr[0]} ; versionminor=${arr[1]} ; versionrev=`echo ${arr[2]} | sed 's/^0*//g'` #; echo versionmajor=$versionmajor ; echo versionminor=$versionminor ; echo versionrev=$versionrev
-if [ "$versionmajor" == "" ] ; then echo ; echo "error parsing $VERSIONTEXTFILE - aborting" ; exit ; fi
-if [ "$versionminor" == "" ] ; then echo ; echo "error parsing $VERSIONTEXTFILE - aborting" ; exit ; fi
-if [ "$versionrev" == "" ] ; then echo ; echo "error parsing $VERSIONTEXTFILE - aborting" ; exit ; fi
-if [ $versionrev -ge 999 ] ; then echo ; echo "current version revision is $versionrev - will not increment - aborting" ; exit ; fi
+versionmajor=${arr[0]} ; versionminor=${arr[1]} ; versionrev=${arr[2]} ; # echo tokens=$tokens ; echo versionmajor=$versionmajor ; echo versionminor=$versionminor ; echo versionrev=$versionrev
+if [ "$versionmajor" == "" ] ; then echo ; echo "$VERSION_FILE $PARSE_ERROR_MSG" ; exit ; fi ;
+if [ "$versionminor" == "" ] ; then echo ; echo "$VERSION_FILE $PARSE_ERROR_MSG" ; exit ; fi ;
+if [ "$versionrev"   == "" ] ; then echo ; echo "$VERSION_FILE $PARSE_ERROR_MSG" ; exit ; fi ;
 
 
 # concatenate wix.wxs file interleaving version number
 echo ; echo "preparing $WXSOUTPUTFILE file"
-# pad version revision number
-if [ $versionrev -ge 100 ] ; then rev=$versionrev
-elif [ $versionrev -ge 10 ] ; then rev="0"$versionrev
-else rev="00"$versionrev
-fi
 version=$versionmajor.$versionminor.$rev
-wxsoutput=`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.1`$version\
-`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.2`$version\
-`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.3`$version\
-`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.4`$version\
-`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.5`$version\
-`cat $WIXFILESDIR/$WIXTEXTFILEPREFIX.6` #; echo wxsoutput= ; echo $wxsoutput
-echo $wxsoutput > $WIXDIR/$WIXSOUTPUTFILE
+wxsoutput=\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.1`$version\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.2`$version\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.3`$version\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.4`$version\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.5`$version\
+`cat $INPUT_FILES_DIR/$WIX_FILE_PREFIX.6` #; echo wxsoutput= ; echo $wxsoutput
+echo $wxsoutput > $BUILD_DIR/$WIX_OUTPUT_FILE
 
 
 # build .msi installer
 echo ; echo "creating installer"
-cd $WIXDIR ; rm *.ini 2> /dev/null ; rm *_license.txt 2> /dev/null ;
-rm $EXEOUTPUTFILE 2> /dev/null ; rm $WIXMSIFILE 2> /dev/null ; 
-cp ../$EXEINPUTFILE $EXEOUTPUTFILE
+cd $BUILD_DIR ; rm ./*
+cp .$INPUT_FILES_DIR/$LICENSE_FILE . ;   cp .$INPUT_FILES_DIR/$LICENSE_ICON_FILE . ;
+cp ../$EXE_INPUT_FILE $EXE_OUTPUT_FILE ; cp .$INPUT_FILES_DIR/$EXE_ICON_FILE . ;
+"$CANDLE_EXE_FILE" $WIX_OUTPUT_FILE
+"$LIGHT_EXE_FILE" -ext WixUIExtension $WIX_OBJECT_FILE -out "TeamStream v$version.msi"
+rm *.wixobj           2> /dev/null ; rm *.wixpdb             2> /dev/null ;
+rm ./$LICENSE_FILE    2> /dev/null ; rm ./$LICENSE_ICON_FILE 2> /dev/null ;
+rm ./$EXE_OUTPUT_FILE 2> /dev/null ; rm ./$EXE_ICON_FILE     2> /dev/null ;
 
-"$CANDLEEXEFILE" $WIXSOUTPUTFILE
-"$LIGHTEXEFILE" -ext WixUIExtension $WIXSOBJECTFILE -out "TeamStream v$version.msi"
 
-rm *.wixobj 2> /dev/null ; rm *.wixpdb 2> /dev/null
-
-
-# increment and pad version revision number
+# increment version revision number
 let versionrev=$versionrev+1
-if [ $versionrev -ge 100 ] ; then rev=$versionrev
-elif [ $versionrev -ge 10 ] ; then rev="0"$versionrev
-else rev="00"$versionrev
-fi
 nextversion=$versionmajor.$versionminor.$rev
 echo ; echo "incrementing version from: $version to: $nextversion"
 
 
 # write out new version.txt and version.h files
 cd ..
-echo "$nextversion " > $VERSIONTEXTFILE
-echo "#define VERSION \"$nextversion\"" > $SRCDIR/$VERSIONHFILE
+echo "$nextversion " > $VERSION_FILE
+echo "#define VERSION \"$nextversion\"" > $VERSION_INPUT_FILE

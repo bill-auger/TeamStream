@@ -1,5 +1,0 @@
-this folder should contain files 'build.sh' and 'version.txt'
-and a 'wix' folder containing your fragmented 'wix.wxs' files
-for 'build.sh' to recombine interlacing the current 'version.txt'
-
-(TODO: be less kludgey)

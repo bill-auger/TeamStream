@@ -88,6 +88,13 @@ ninjam/qtclient/qtclient
 
 
 #
+# executables
+#
+*.exe
+*.msi
+
+
+#
 # misc
 #
 *_license.txt
