@@ -1,3 +1,4 @@
+
 TeamStream clients and server (http://teamstream.herokuapp.com)
 -------------------------------------------------------------
 
@@ -14,41 +15,41 @@ especially for non-technical musicians. If you are a developer and would like
 to help out; feel free to fork this repo. The following is a list of some of
 the new features that have been added so far (more to come).
 
-Features available in all jam rooms:
-  Fully compatible with all standard NINJAM jam rooms
-  Includes all the standard NINJAM features you love (sans the integrated FX)
-  Redesigned sleeker GUI - view all jammers without scrolling on most screens
-  Shows usernames only (hides IP) e.g. Joe_Cool vs Joe_Cool@192.168.1.x
-  Automatically accept server licenses after initially agreeing
-  Colored chat text with clickable web url links
-  Buttons for easy bpi/bpm voting
-  Create desktop shortcuts for favorite jam rooms
-  One-click login buttons for saving favorite jam rooms
-  One-click login buttons for currently active jam rooms updated in real-time
-  See who is in the other public jam rooms at all times via the quick login bar
-  Launch TeamStream and join a jam room automatically by clicking a link on a webpage
-  The TeamStream homepage lists such links to all known public jam rooms
+####Features available in all jam rooms:
+* Fully compatible with all standard NINJAM jam rooms
+* Includes all the standard NINJAM features you love (sans the integrated FX)
+* Redesigned sleeker GUI - view all jammers without scrolling on most screens
+* Shows usernames only (hides IP) e.g. ```Joe_Cool``` vs ```Joe_Cool@192.168.1.x```
+* Automatically accept server licenses after initially agreeing
+* Colored chat text with clickable web url links
+* Buttons for easy bpi/bpm voting
+* Create desktop shortcuts for favorite jam rooms
+* One-click login buttons for saving favorite jam rooms
+* One-click login buttons for currently active jam rooms updated in real-time
+* See who is in the other public jam rooms at all times via the quick login bar
+* Launch TeamStream and join a jam room automatically by clicking a link on a webpage
+* The TeamStream homepage lists such links to all known public jam rooms
 
-Features available in TeamStream jam rooms only:
-  TeamStreaming - What is TeamStreaming? See http://teamstream.heroku.com/about.html
+####Features available in TeamStream jam rooms only:
+* TeamStreaming - What is TeamStreaming? See http://teamstream.heroku.com/about.html
 
-Current Version: v0.07.001
+Current Version: v0.7.0
 
-Grab the latest installer here -->
-  https://github.com/downloads/bill-auger/TeamStream/TeamStream.msi
+####Grab the latest installer here -->
+* [Download TeamStream Installer for Windows](https://github.com/downloads/bill-auger/TeamStream/TeamStream.msi)
 
-NINJAM server binaries here -->
-  Windows:
-    https://github.com/downloads/bill-auger/TeamStream/ninjam_server_win32_v006.zip
-  OSX:
-    https://github.com/downloads/bill-auger/TeamStream/ninjam_server_osx.dmg
-  Linux (source only):
-    https://github.com/downloads/bill-auger/TeamStream/ninjam_server_0.06.zip
+####NINJAM server binaries here -->
+*  Windows:
+  *  [ninjam_server_win32_v006.zip](https://github.com/downloads/bill-auger/TeamStream/ninjam_server_win32_v006.zip)
+*  OSX:
+  *  [ninjam_server_osx.dmg](https://github.com/downloads/bill-auger/TeamStream/ninjam_server_osx.dmg)
+*  Linux (source only):
+  *  [ninjam_server_0.06.zip](https://github.com/downloads/bill-auger/TeamStream/ninjam_server_0.06.zip)
 
 
 Source tree layout
 ------------------
-
+```
   ninjam/
     cursesclient/   Curses client
     KS/             Windows kernel streaming driver support
@@ -57,8 +58,10 @@ Source tree layout
     winclient/      Windows client
   WDL/              Common library
   sdks/             Third-party source libraries
+```
 
 This code is licensed GPL v2 or later:
+
   http://www.gnu.org/licenses/gpl-2.0.html
 
 
@@ -92,9 +95,6 @@ proprietary integrated effects processor for which no documentation nor source c
 was available. As of May 2012, the server is unmodified from the original version
 and the curses client is unmodified from the Wahjam version. The original files were:
 
-cclient_src_v0.01a.tar.gz
-  https://github.com/downloads/bill-auger/TeamStream/cclient_src_v0.01a.tar.gz
-ninjam_server_0.06.tar.gz
-  https://github.com/downloads/bill-auger/TeamStream/ninjam_server_0.06.zip
-ninjam_winclient_0.06.zip
-  https://github.com/downloads/bill-auger/TeamStream/ninjam_winclient_0.06.zip
+* [cclient_src_v0.01a.tar.gz](https://github.com/downloads/bill-auger/TeamStream/cclient_src_v0.01a.tar.gz)
+* [ninjam_server_0.06.zip](https://github.com/downloads/bill-auger/TeamStream/ninjam_server_0.06.zip)
+* [ninjam_winclient_0.06.zip](https://github.com/downloads/bill-auger/TeamStream/ninjam_winclient_0.06.zip)
