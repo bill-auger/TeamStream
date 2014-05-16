@@ -36,7 +36,7 @@ the new features that have been added so far (more to come).
 Current Version: v0.7.0
 
 ####Grab the latest installer here -->
-* [Download TeamStream Installer for Windows](https://github.com/downloads/bill-auger/TeamStream/TeamStream.msi)
+* [Download TeamStream Installer for Windows](https://github.com/bill-auger/TeamStream/releases/download/initial-beta/TeamStream.v0.7.0.msi)
 
 ####NINJAM server binaries here -->
 *  Windows:
